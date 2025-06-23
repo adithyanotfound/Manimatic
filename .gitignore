@@ -1,0 +1,10 @@
+node_modules
+.DS_Store
+.env
+dist
+videos
+temp
+audio
+eng.traineddata
+uploads
+tsconfig.tsbuildinfo
