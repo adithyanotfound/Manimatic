@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manimatic AI Assistant</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <button id="newChatBtn" class="new-chat-btn">
+                    <i class="fas fa-plus"></i> New Chat
+                </button>
+            </div>
+            <div class="chat-history">
+                <div class="history-item">Two Sum Problem</div>
+                </div>
+            <div class="sidebar-footer">
+                <button class="settings-btn"><i class="fas fa-cog"></i> Settings</button>
+                <button class="mode-toggle-btn"><i class="fas fa-moon"></i> Dark/Light Mode</button>
+            </div>
+        </aside>
+
+        <main class="chat-main">
+            <header class="chat-header">
+                <h1>Manimatic AI Assistant</h1>
+            </header>
+
+            <div class="chat-messages" id="chatMessages">
+                </div>
+
+            <div class="chat-input-area">
+                <div class="input-row">
+                    <textarea id="promptInput" placeholder="Send a message..." rows="1"></textarea>
+                    <button id="sendPromptBtn" class="send-btn" title="Send Prompt">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+
+                <div class="upload-row">
+                    <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                    <button id="uploadImageBtn" class="upload-btn" title="Upload Image">
+                        <i class="fas fa-image"></i> Upload Image
+                    </button>
+                    <span id="fileNameDisplay" class="file-name-display"></span>
+                </div>
+
+                <div class="input-row">
+                    <textarea id="additionalPromptInput" placeholder="Add an additional prompt for image-based generation (optional)..." rows="1"></textarea>
+                </div>
+
+                <div class="action-buttons-row" style="display: none;" id="imageActionButtons">
+                    <button id="sendImagePromptBtn" class="send-btn" title="Generate Video from Image">
+                        <i class="fas fa-video"></i> Generate Video from Image
+                    </button>
+                    <button id="extractTextBtn" class="send-btn" title="Extract Text Only">
+                        <i class="fas fa-file-alt"></i> Extract Text Only
+                    </button>
+                </div>
+
+                <div style="display: none;">
+                    <label>
+                        <input type="checkbox" id="includeNarrationText" checked> Include Narration (Text Prompt)
+                    </label>
+                    <label>
+                        <input type="checkbox" id="includeNarrationImage" checked> Include Narration (Image Prompt)
+                    </label>
+                </div>
+
+                <div class="loading-spinner" id="loadingSpinner" style="display: none;">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p>Processing request...</p>
+                </div>
+
+                <div class="extracted-text-output" id="extractedTextOutputSection" style="display: none;">
+                    <h3>Extracted Text:</h3>
+                    <p id="extractedTextContent"></p>
+                    <p id="extractedWordCount"></p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="videoModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeVideoModal">&times;</span>
+            <h2 class="modal-title">Generated Video</h2>
+            <video id="modalVideoPlayer" controls autoplay></video>
+            <div class="modal-actions">
+                <a id="modalDownloadVideoLink" href="#" download="manimatic_video.mp4" class="modal-download-btn">
+                    <i class="fas fa-download"></i> Download Video
+                </a>
+                <a id="modalDownloadAudioLink" href="#" download="manimatic_audio.mp3" class="modal-download-btn modal-audio-download-btn" style="display: none;">
+                    <i class="fas fa-music"></i> Download Audio
+                </a>
+            </div>
+            <audio id="modalOutputAudioPlayer" controls class="hidden-audio-player"></audio>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</body>
+</html>

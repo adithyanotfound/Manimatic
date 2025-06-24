@@ -1,0 +1,575 @@
+/* General Styles */
+:root {
+    --bg-color: #202123;
+    --sidebar-bg: #2b2b2b;
+    --chat-bg: #343541;
+    --input-bg: #40414F;
+    --text-color: #DDE0E3;
+    --ai-message-bg: #444654;
+    --user-message-bg: #3D3E4C;
+    --accent-color: #1A73E8; /* Your current accent blue */
+    --border-color: #555;
+    --shadow-color: rgba(0, 0, 0, 0.2);
+    --button-hover: #505260;
+    --error-color: #FF5555;
+    --success-color: #55FF55;
+    --accent-hover-color: #1A5CBF; /* A slightly darker blue for hover, derived from your accent */
+}
+
+body {
+    font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif; /* Add Inter or Roboto if you link them */
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    min-height: 100vh;
+    overflow: hidden; /* Prevent body scroll, let chat messages scroll */
+}
+
+/* App Container - Flex for sidebar and main chat */
+.app-container {
+    display: flex;
+    width: 100%;
+    height: 100vh; /* Adjust if you want some margin around it */
+    max-width: 1400px; /* Added max-width for larger screens */
+    min-height: 600px; /* Added min-height */
+    border-radius: 15px; /* Added border-radius for the whole app */
+    overflow: hidden; /* Ensures rounded corners */
+    box-shadow: 0 10px 30px var(--shadow-color); /* Stronger shadow for the app container */
+}
+
+/* Sidebar Styling */
+.sidebar {
+    width: 260px;
+    background-color: var(--sidebar-bg);
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    border-right: 1px solid var(--border-color);
+    box-shadow: 2px 0 5px var(--shadow-color);
+}
+
+.sidebar-header {
+    margin-bottom: 1rem;
+}
+
+.new-chat-btn {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s ease;
+}
+
+.new-chat-btn:hover {
+    background-color: var(--button-hover);
+}
+
+.chat-history {
+    flex-grow: 1; /* Makes history take up available space */
+    overflow-y: auto; /* Scrollable history */
+    margin-bottom: 1rem;
+    padding-right: 0.5rem; /* For scrollbar */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+.chat-history::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+.history-item {
+    padding: 0.75rem 0.5rem;
+    cursor: pointer;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    color: #999;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-item:hover {
+    background-color: var(--button-hover);
+    color: var(--text-color);
+}
+
+.sidebar-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-top: 1px solid var(--border-color); /* Added border-top */
+    padding-top: 1rem; /* Added padding-top */
+}
+
+.settings-btn, .mode-toggle-btn {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: transparent;
+    border: none;
+    color: var(--text-color);
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s ease;
+}
+
+.settings-btn:hover, .mode-toggle-btn:hover {
+    background-color: var(--button-hover);
+}
+
+
+/* Main Chat Area Styling */
+.chat-main {
+    flex-grow: 1; /* Takes up remaining width */
+    display: flex;
+    flex-direction: column;
+    background-color: var(--chat-bg);
+    position: relative; /* For z-index stacking if needed */
+}
+
+.chat-header {
+    background-color: var(--input-bg); /* Slightly darker header */
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    box-shadow: 0 2px 5px var(--shadow-color);
+    z-index: 10; /* Ensure it's above scrolling messages */
+}
+
+.chat-header h1 {
+    margin: 0;
+    font-size: 1.5rem; /* Slightly larger header font */
+    color: var(--text-color);
+}
+
+.chat-messages {
+    flex-grow: 1; /* Makes messages area scrollable */
+    overflow-y: auto;
+    padding: 1rem 1.5rem;
+    scroll-behavior: smooth; /* Smooth scrolling when new messages arrive */
+    display: flex; /* Ensure messages stack correctly */
+    flex-direction: column;
+    gap: 1rem; /* Space between messages */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+}
+
+.chat-messages::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+/* Message Bubble Styles */
+.message {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    max-width: 85%; /* Limit message width */
+}
+
+.message-avatar {
+    width: 35px; /* Slightly larger avatar */
+    height: 35px;
+    border-radius: 50%;
+    background-color: var(--accent-color); /* A default avatar color */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem; /* Slightly larger font */
+    font-weight: bold;
+    color: #fff;
+    flex-shrink: 0; /* Don't shrink avatar */
+}
+
+.message-content {
+    padding: 0.8rem 1.2rem;
+    border-radius: 0.75rem; /* Slightly more rounded */
+    line-height: 1.6;
+    word-wrap: break-word; /* Ensure long words break */
+    white-space: pre-wrap; /* Preserve whitespace and line breaks */
+    box-shadow: 0 1px 3px var(--shadow-color); /* Added subtle shadow to bubbles */
+}
+
+.user-message {
+    margin-left: auto; /* Align user messages to the right */
+}
+
+.user-message .message-content {
+    background-color: var(--user-message-bg);
+    color: var(--text-color);
+    border-bottom-right-radius: 0.25rem; /* Slight corner tweak */
+}
+
+.ai-message {
+    margin-right: auto; /* Align AI messages to the left */
+}
+
+.ai-message .message-content {
+    background-color: var(--ai-message-bg);
+    color: var(--text-color);
+    border-bottom-left-radius: 0.25rem; /* Slight corner tweak */
+}
+
+/* Input Area Styling */
+.chat-input-area {
+    background-color: var(--input-bg);
+    padding: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -2px 5px var(--shadow-color);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem; /* Increased gap between input rows */
+    align-items: center; /* Center input components */
+}
+
+.input-row,
+.upload-row,
+.action-buttons-row { /* Added action-buttons-row */
+    display: flex;
+    width: clamp(300px, 70%, 900px); /* Responsive width for input */
+    background-color: var(--user-message-bg); /* Match message bubble background */
+    border-radius: 0.75rem;
+    padding: 0.5rem;
+    box-shadow: 0 1px 3px var(--shadow-color) inset;
+    align-items: flex-end; /* Align textarea and button at bottom */
+    gap: 0.75rem; /* Gap within input rows */
+}
+
+textarea {
+    flex-grow: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text-color);
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+    resize: none; /* Disable manual resize */
+    min-height: 40px; /* Min-height for consistency */
+    max-height: 150px; /* Prevent it from getting too tall */
+    overflow-y: auto; /* Scroll if content exceeds max-height */
+}
+
+.send-btn, .upload-btn {
+    background-color: var(--accent-color);
+    border: none;
+    border-radius: 0.5rem;
+    color: white;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease; /* Added transform */
+    font-size: 1rem;
+    gap: 0.5rem;
+    white-space: nowrap; /* Prevent text wrapping */
+}
+
+.send-btn:hover, .upload-btn:hover {
+    background-color: var(--accent-hover-color); /* Used your accent-hover-color */
+    transform: translateY(-1px); /* Subtle hover effect */
+}
+
+.send-btn:disabled, .upload-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none; /* No transform when disabled */
+}
+
+.upload-row {
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.file-name-display {
+    font-size: 0.85rem;
+    color: #aaa;
+    flex-grow: 1; /* Allow it to take space */
+    padding: 0.5rem 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ACTION BUTTONS ROW (for image actions) */
+.action-buttons-row {
+    justify-content: center; /* Center buttons within the row */
+    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+    background-color: transparent; /* No background for this specific row */
+    box-shadow: none; /* No box shadow for this specific row */
+}
+
+
+/* LOADING SPINNER STYLES */
+.loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 1rem; /* Adjusted margin */
+    color: var(--accent-color); /* Uses your accent color */
+    font-size: 1.1rem;
+    height: 50px; /* Consistent height for the spinner area */
+}
+.loading-spinner p {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+/* EXTRACTED TEXT OUTPUT STYLES */
+.extracted-text-output {
+    width: clamp(300px, 80%, 900px);
+    margin: 1.5rem auto; /* Center horizontally with vertical margin */
+    background-color: var(--ai-message-bg); /* Using your AI message background */
+    padding: 1.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 15px var(--shadow-color);
+    border: 1px solid var(--border-color);
+}
+.extracted-text-output h3 {
+    margin-top: 0;
+    color: var(--accent-color); /* Uses your accent color */
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+.extracted-text-output p {
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    white-space: pre-wrap; /* Preserve whitespace for extracted text */
+}
+
+
+/* --- NEW: VIDEO MODAL STYLES --- */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.8); /* Black w/ opacity */
+    display: flex; /* Use flexbox for centering */
+    align-items: center; /* Center vertically */
+    justify-content: center; /* Center horizontally */
+    -webkit-backdrop-filter: blur(5px); /* Safari blur effect */
+    backdrop-filter: blur(5px); /* Standard blur effect */
+    animation: fadeIn 0.3s forwards; /* Fade in animation */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background-color: var(--chat-bg); /* Using your chat background color */
+    margin: auto;
+    padding: 2rem;
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.5); /* Stronger shadow for modal */
+    width: 90%;
+    max-width: 900px; /* Max width for the modal content */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative; /* For close button positioning */
+    animation: slideIn 0.3s forwards cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Slide in animation */
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-50px) scale(0.9); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.modal-title {
+    color: var(--accent-color);
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+    text-align: center;
+}
+
+.close-button {
+    color: var(--text-color);
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    font-size: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.1s ease;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: var(--error-color); /* Red on hover/focus */
+    transform: rotate(90deg);
+}
+
+#modalVideoPlayer {
+    width: 100%;
+    max-height: 60vh; /* Max height relative to viewport */
+    background-color: #000;
+    border-radius: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    width: 100%; /* Ensure actions take full width for centering */
+}
+
+.modal-download-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.8rem;
+    background-color: var(--accent-color); /* Uses your accent color */
+    color: white;
+    text-decoration: none;
+    border-radius: 0.6rem;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    font-weight: bold;
+    font-size: 1rem; /* Slightly larger font for modal buttons */
+    white-space: nowrap;
+}
+
+.modal-download-btn:hover {
+    background-color: var(--accent-hover-color);
+    transform: translateY(-2px);
+}
+
+.modal-audio-download-btn {
+    background-color: #555; /* A neutral color for audio download */
+}
+
+.modal-audio-download-btn:hover {
+    background-color: #666;
+}
+
+.hidden-audio-player {
+    display: none; /* Controlled by JS when audio is generated */
+    width: 100%;
+    max-width: 700px; /* Match video player width */
+    margin-top: 1rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column; /* Stack sidebar and main chat */
+        height: 100vh; /* Full height on mobile */
+        border-radius: 0; /* No border-radius on app-container */
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        box-shadow: 0 2px 5px var(--shadow-color);
+        flex-direction: row; /* Sidebar items in a row */
+        justify-content: space-around;
+        padding: 0.5rem;
+    }
+
+    .sidebar-header, .chat-history, .sidebar-footer {
+        flex-direction: row;
+        gap: 0.5rem;
+        margin: 0;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    .new-chat-btn, .settings-btn, .mode-toggle-btn {
+        width: auto;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    .chat-main {
+        padding-bottom: 150px; /* Make space for fixed input at bottom */
+    }
+
+    .chat-input-area {
+        position: fixed; /* Fix input area to bottom */
+        bottom: 0;
+        width: 100%;
+        left: 0;
+        right: 0;
+        padding: 1rem;
+        border-top: 1px solid var(--border-color);
+    }
+    .input-row,
+    .upload-row,
+    .action-buttons-row,
+    .loading-spinner,
+    .extracted-text-output {
+        width: 100%; /* Full width on small screens */
+        padding: 0 0.5rem; /* Reduce horizontal padding for smaller screens */
+        box-sizing: border-box; /* Ensure padding is included in width */
+    }
+
+    .send-btn, .upload-btn {
+        padding: 0.7rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .modal-content {
+        width: 95%; /* Adjust modal width for small screens */
+        padding: 1rem; /* Reduce padding */
+    }
+    .modal-title {
+        font-size: 1.5rem; /* Adjust title size */
+        margin-bottom: 1rem;
+    }
+    .close-button {
+        font-size: 1.5rem;
+        top: 0.5rem;
+        right: 0.75rem;
+    }
+    .modal-download-btn {
+        font-size: 0.9rem;
+        padding: 0.7rem 1.2rem;
+    }
+}
+
+/* Markdown Styling (from your previous CSS) */
+.message-content pre {
+    background-color: #333;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto; /* Horizontal scroll for wide code */
+}
+
+.message-content code {
+    font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; /* Monospaced font */
+    background-color: #444;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+.message-content pre code {
+    background-color: transparent; /* No extra background for inline code in code blocks */
+    padding: 0;
+}

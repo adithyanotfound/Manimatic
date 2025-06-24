@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { instructions } from "./instructions-v2";
+import { instructions } from "./instructions-v2.js";
 import express from "express";
 import fs from "fs/promises";
 import path from "path";
@@ -20,6 +20,10 @@ const TEMP_DIR = path.join(PROJECT_ROOT, 'temp');
 const VIDEOS_DIR = path.join(PROJECT_ROOT, 'videos');
 const AUDIO_DIR = path.join(PROJECT_ROOT, 'audio');
 const UPLOADS_DIR = path.join(PROJECT_ROOT, 'uploads');
+const COMPILED_ASSETS_DIR = path.join(PROJECT_ROOT, 'dist', 'public');
+console.log('Serving compiled assets (script.js) from:', COMPILED_ASSETS_DIR);
+const SOURCE_FRONTEND_DIR = path.join(PROJECT_ROOT, 'public');
+console.log('Serving source frontend files (index.html, style.css) from:', SOURCE_FRONTEND_DIR);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -50,7 +54,16 @@ const upload = multer({
 // Middleware
 app.use(express.json());
 app.use(cors());
+// --- ORDER MATTERS FOR STATIC FILES ---
+// Serve compiled assets first. If 'index.html' or 'style.css' were also copied here
+// by a build process (like Webpack), this would serve them.
+app.use(express.static(COMPILED_ASSETS_DIR));
 
+// Then serve your source public directory. This is where your 'index.html' and 'style.css' are.
+// If a file is not found in COMPILED_ASSETS_DIR, Express will look here.
+// This ensures 'index.html' and 'style.css' are found, and crucially, 'script.js' is found first
+// from COMPILED_ASSETS_DIR if it's requested.
+app.use(express.static(SOURCE_FRONTEND_DIR));
 // Serve static files from the videos directory
 app.use('/videos', express.static(VIDEOS_DIR));
 app.use('/audio', express.static(AUDIO_DIR));
@@ -60,7 +73,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // Create necessary directories
 const ensureDirectories = async () => {
-  const dirs = [TEMP_DIR, VIDEOS_DIR, AUDIO_DIR, UPLOADS_DIR];
+  const dirs = [TEMP_DIR, VIDEOS_DIR, AUDIO_DIR, UPLOADS_DIR , COMPILED_ASSETS_DIR, SOURCE_FRONTEND_DIR];
   for (const dir of dirs) {
     try {
       await fs.mkdir(dir, { recursive: true });
@@ -481,7 +494,6 @@ function extractSceneClassName(code: string): string {
 }
 
 // API Routes
-
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', message: 'Manim server with narration and OCR is running' });
@@ -490,6 +502,7 @@ app.get('/health', (req, res) => {
 // Generate and execute Manim video with narration (existing text-based endpoint)
 app.post('/generate-video', async (req, res) => {
   const { prompt, includeNarration = true } = req.body;
+  console.log('Request Body:', req.body); // Log the entire request body
   
   if (!prompt) {
     res.status(400).json({ error: 'Prompt is required' });
@@ -696,6 +709,7 @@ app.post('/extract-text', upload.single('image'), async (req, res) => {
 // Generate Manim code only (for debugging)
 app.post('/generate-code', async (req, res) => {
   const { prompt } = req.body;
+  console.log('--- Request received for /generate-video ---');
   
   if (!prompt) {
     res.status(400).json({ error: 'Prompt is required' });
@@ -791,6 +805,7 @@ const startServer = async () => {
       console.log(`📁 Project root: ${PROJECT_ROOT}`);
       console.log(`📁 Videos directory: ${VIDEOS_DIR}`);
       console.log(`📁 Temp directory: ${TEMP_DIR}`);
+      console.log(`🌐 Frontend served at: http://localhost:${PORT}/`);
       console.log(`📺 Videos served at: http://localhost:${PORT}/videos/`);
       console.log(`🎬 Generate videos at: http://localhost:${PORT}/generate-video`);
     });

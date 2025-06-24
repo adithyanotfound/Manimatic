@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { instructions } from "./instructions-v2";
+import { instructions } from "./instructions-v2.js";
 import express from "express";
 import fs from "fs/promises";
 import path from "path";
