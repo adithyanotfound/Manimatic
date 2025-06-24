@@ -77,8 +77,8 @@ Before you begin, ensure you have the following installed on your system:
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/](https://github.com/)[YourGitHubUsername]/[YourRepositoryName].git
-    cd [YourRepositoryName] # e.g., cd Manimatic
+    git clone https://github.com/adithyanotfound/Manimatic.git
+    cd Manimatic
     ```
 
 2.  **Set Up Node.js Dependencies:**
