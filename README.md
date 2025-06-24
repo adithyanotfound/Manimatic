@@ -8,6 +8,8 @@
 
 ---
 
+https://github.com/user-attachments/assets/029a0a90-d20e-4ce3-b405-b4972feeb122
+
 ## 🚀 Overview
 
 **Manimatic AI** is an innovative web application that bridges the gap between natural language problem statements and beautiful mathematical visualizations. Simply describe a math problem or a concept in plain English, and our AI-powered backend will interpret, solve, and generate a stunning animation using the Manim animation engine, presented right in your browser!
