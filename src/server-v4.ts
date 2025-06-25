@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { instructions } from "./instructions-v3";
+import { instructions } from "./instructions-v4";
 import express from "express";
 import fs from "fs/promises";
 import path from "path";
@@ -30,12 +30,29 @@ console.log('Serving source frontend files (index.html, style.css) from:', SOURC
 const HARDCODED_VIDEOS = {
   "explain the concept of llm": {
     videoFile: "8b25ec0c-acd5-4014-b0cb-8b6b99eb82da_with_audio.mp4",
-    delay: 90000 // 1 minute 30 seconds in milliseconds
+    delay: 60000 // 1 minute in milliseconds
   },
   "explain neural networks": {
     videoFile: "e1bab1b5-53bb-4c05-8031-608a25a692ea_with_audio.mp4",
-    delay: 90000 // 1 minute 30 seconds in milliseconds
-  }
+    delay: 60000 // 1 minute in milliseconds
+  },
+  "Explain the concept of recursion in programming" 
+: {
+    videoFile: "2a0acc2f-a3a9-4827-8979-664c7557e0d3_with_audio.mp4",
+    delay: 60000 // 1 minute in milliseconds
+  },
+  "Explain machine learning basics" : {
+    videoFile: "ed159397-8b51-49b8-aa04-57bdcbe79828_with_audio.mp4",
+    delay: 60000 // 1 minute in milliseconds
+  },
+  "How do I solve quadratic equations?" : {
+    videoFile: "93837730-945a-47ab-a12b-3ad5929070dd_with_audio.mp4",
+    delay: 60000 // 1 minute in milliseconds
+  },
+  "solve koko eating bananas problem" : {
+    videoFile: "aca4c4e4-92c3-4a3b-94d9-912aea885971_with_audio.mp4",
+    delay: 60000 // 1 minute in milliseconds
+  },
 };
 
 // Function to check if prompt matches hardcoded videos

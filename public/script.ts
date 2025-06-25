@@ -1,29 +1,233 @@
-// script.ts
+// Enhanced script.ts with fixed video functionality and v0.dev-style UI
 declare const marked: any;
 
+interface ChatMessage {
+    id: string;
+    sender: 'User' | 'AI';
+    text: string;
+    timestamp: number;
+    isError?: boolean;
+    videoPath?: string;
+    audioPath?: string;
+}
+
+interface ChatSession {
+    id: string;
+    title: string;
+    messages: ChatMessage[];
+    createdAt: number;
+    updatedAt: number;
+}
+
+interface AppSettings {
+    theme: 'dark' | 'light' | 'auto';
+    autoSaveChats: boolean;
+    showTimestamps: boolean;
+}
+
+class ChatManager {
+    private currentSessionId: string | null = null;
+    private sessions: Map<string, ChatSession> = new Map();
+    private settings: AppSettings;
+
+    constructor() {
+        this.settings = this.loadSettings();
+        this.loadSessions();
+        this.applySettings();
+    }
+
+    private loadSettings(): AppSettings {
+        const defaultSettings: AppSettings = {
+            theme: 'light',
+            autoSaveChats: true,
+            showTimestamps: false
+        };
+
+        try {
+            const saved = localStorage.getItem('manimatic_settings');
+            return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings;
+        } catch {
+            return defaultSettings;
+        }
+    }
+
+    private saveSettings(): void {
+        localStorage.setItem('manimatic_settings', JSON.stringify(this.settings));
+    }
+
+    private loadSessions(): void {
+        try {
+            const saved = localStorage.getItem('manimatic_sessions');
+            if (saved) {
+                const sessionsData = JSON.parse(saved);
+                this.sessions = new Map(Object.entries(sessionsData));
+            }
+        } catch (error) {
+            console.error('Failed to load sessions:', error);
+        }
+    }
+
+    private saveSessions(): void {
+        if (!this.settings.autoSaveChats) return;
+        
+        try {
+            const sessionsData = Object.fromEntries(this.sessions);
+            localStorage.setItem('manimatic_sessions', JSON.stringify(sessionsData));
+        } catch (error) {
+            console.error('Failed to save sessions:', error);
+        }
+    }
+
+    public applySettings(): void {
+        document.documentElement.setAttribute('data-theme', this.settings.theme);
+    }
+
+    public updateSettings(newSettings: Partial<AppSettings>): void {
+        this.settings = { ...this.settings, ...newSettings };
+        this.saveSettings();
+        this.applySettings();
+    }
+
+    public getSettings(): AppSettings {
+        return { ...this.settings };
+    }
+
+    public createNewSession(): string {
+        const sessionId = this.generateId();
+        const session: ChatSession = {
+            id: sessionId,
+            title: 'New Chat',
+            messages: [],
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        this.sessions.set(sessionId, session);
+        this.currentSessionId = sessionId;
+        this.saveSessions();
+        return sessionId;
+    }
+
+    public switchToSession(sessionId: string): boolean {
+        if (this.sessions.has(sessionId)) {
+            this.currentSessionId = sessionId;
+            return true;
+        }
+        return false;
+    }
+
+    public getCurrentSession(): ChatSession | null {
+        if (!this.currentSessionId) return null;
+        return this.sessions.get(this.currentSessionId) || null;
+    }
+
+    public addMessage(sender: 'User' | 'AI', text: string, isError: boolean = false, videoPath?: string, audioPath?: string): void {
+        if (!this.currentSessionId) {
+            this.createNewSession();
+        }
+
+        const session = this.getCurrentSession();
+        if (!session) return;
+
+        const message: ChatMessage = {
+            id: this.generateId(),
+            sender,
+            text,
+            timestamp: Date.now(),
+            isError,
+            videoPath,
+            audioPath
+        };
+
+        session.messages.push(message);
+        session.updatedAt = Date.now();
+
+        // Update session title based on first user message
+        if (sender === 'User' && session.messages.filter(m => m.sender === 'User').length === 1) {
+            session.title = text.substring(0, 50) + (text.length > 50 ? '...' : '');
+        }
+
+        this.saveSessions();
+    }
+
+    public deleteSession(sessionId: string): boolean {
+        if (this.sessions.delete(sessionId)) {
+            if (this.currentSessionId === sessionId) {
+                this.currentSessionId = null;
+            }
+            this.saveSessions();
+            return true;
+        }
+        return false;
+    }
+
+    public clearAllSessions(): void {
+        this.sessions.clear();
+        this.currentSessionId = null;
+        this.saveSessions();
+    }
+
+    public getAllSessions(): ChatSession[] {
+        return Array.from(this.sessions.values()).sort((a, b) => b.updatedAt - a.updatedAt);
+    }
+
+    public exportSession(sessionId: string): string | null {
+        const session = this.sessions.get(sessionId);
+        if (!session) return null;
+
+        const exportData = {
+            title: session.title,
+            createdAt: new Date(session.createdAt).toISOString(),
+            messages: session.messages.map(msg => ({
+                sender: msg.sender,
+                text: msg.text,
+                timestamp: new Date(msg.timestamp).toISOString()
+            }))
+        };
+
+        return JSON.stringify(exportData, null, 2);
+    }
+
+    private generateId(): string {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("--- script.ts loaded and DOM is ready ---");
-    console.log('DOM Content Loaded event fired.');
+    console.log("--- Enhanced v0.dev-style script loaded ---");
+
+    // Initialize chat manager
+    const chatManager = new ChatManager();
 
     // --- DOM Elements ---
     const chatMessages = document.getElementById('chatMessages') as HTMLDivElement;
     const textPromptInput = document.getElementById('promptInput') as HTMLTextAreaElement;
-    const includeNarrationText = document.getElementById('includeNarrationText') as HTMLInputElement;
     const generateVideoFromTextBtn = document.getElementById('sendPromptBtn') as HTMLButtonElement;
 
     const imageUploadInput = document.getElementById('imageUpload') as HTMLInputElement;
     const uploadImageTriggerBtn = document.getElementById('uploadImageBtn') as HTMLButtonElement;
     const fileNameDisplay = document.getElementById('fileNameDisplay') as HTMLSpanElement;
+    const clearImageBtn = document.getElementById('clearImageBtn') as HTMLButtonElement;
     const additionalPromptInput = document.getElementById('additionalPromptInput') as HTMLTextAreaElement;
-    const includeNarrationImage = document.getElementById('includeNarrationImage') as HTMLInputElement;
     const generateVideoFromImageBtn = document.getElementById('sendImagePromptBtn') as HTMLButtonElement;
     const extractTextBtn = document.getElementById('extractTextBtn') as HTMLButtonElement;
 
+    const fileUploadSection = document.getElementById('fileUploadSection') as HTMLDivElement;
     const imageActionButtons = document.getElementById('imageActionButtons') as HTMLDivElement;
-
     const loadingSpinner = document.getElementById('loadingSpinner') as HTMLDivElement;
 
-    // NEW VIDEO MODAL ELEMENTS
+    // Chat history elements
+    const newChatBtn = document.getElementById('newChatBtn') as HTMLButtonElement;
+    const recentChats = document.getElementById('recentChats') as HTMLDivElement;
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn') as HTMLButtonElement;
+    const chatTitle = document.getElementById('chatTitle') as HTMLHeadingElement;
+
+    // Settings elements
+    const settingsBtn = document.getElementById('settingsBtn') as HTMLButtonElement;
+    const settingsModal = document.getElementById('settingsModal') as HTMLDivElement;
+    const closeSettingsModal = document.getElementById('closeSettingsModal') as HTMLSpanElement;
+
+    // Modal elements
     const videoModal = document.getElementById('videoModal') as HTMLDivElement;
     const closeVideoModal = document.getElementById('closeVideoModal') as HTMLSpanElement;
     const modalVideoPlayer = document.getElementById('modalVideoPlayer') as HTMLVideoElement;
@@ -31,24 +235,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalOutputAudioPlayer = document.getElementById('modalOutputAudioPlayer') as HTMLAudioElement;
     const modalDownloadAudioLink = document.getElementById('modalDownloadAudioLink') as HTMLAnchorElement;
 
-    const extractedTextOutputSection = document.getElementById('extractedTextOutputSection') as HTMLDivElement;
+    // Text output modal
+    const textOutputModal = document.getElementById('textOutputModal') as HTMLDivElement;
+    const closeTextModal = document.getElementById('closeTextModal') as HTMLSpanElement;
     const extractedTextContent = document.getElementById('extractedTextContent') as HTMLParagraphElement;
-    const extractedWordCount = document.getElementById('extractedWordCount') as HTMLParagraphElement;
+    const extractedWordCount = document.getElementById('extractedWordCount') as HTMLSpanElement;
 
-    // --- NEW: Variable to store the selected image file ---
+    // Export and share buttons
+    const exportChatBtn = document.getElementById('exportChatBtn') as HTMLButtonElement;
+    const shareChatBtn = document.getElementById('shareChatBtn') as HTMLButtonElement;
+
+    // --- Variables ---
     let currentSelectedImageFile: File | null = null;
-    // --- END NEW ---
-
-    // --- Configuration ---
-    const API_BASE_URL = 'http://localhost:3000'; // IMPORTANT: Make sure this URL matches your Node.js server's address and port
+    const API_BASE_URL = 'http://localhost:3000';
 
     // --- UI Update Functions ---
-    function addMessage(sender: 'User' | 'AI', text: string, isError: boolean = false) {
+    function addMessage(sender: 'User' | 'AI', text: string, isError: boolean = false, videoPath?: string, audioPath?: string): void {
+        // Add to chat manager
+        chatManager.addMessage(sender, text, isError, videoPath, audioPath);
+
+        // Create DOM element
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', sender === 'User' ? 'user-message' : 'ai-message');
-        if (isError) {
-            messageDiv.classList.add('error-message');
-        }
 
         const avatarDiv = document.createElement('div');
         avatarDiv.classList.add('message-avatar');
@@ -63,11 +271,211 @@ document.addEventListener('DOMContentLoaded', () => {
             contentDiv.textContent = text;
         }
 
+        // Add video button if video path is provided
+        if (videoPath) {
+            const videoBtn = document.createElement('button');
+            videoBtn.classList.add('watch-video-btn');
+            videoBtn.innerHTML = '<i class="fas fa-play"></i> Watch Video';
+            videoBtn.onclick = () => {
+                showVideoModal(videoPath, audioPath);
+            };
+            contentDiv.appendChild(videoBtn);
+        }
+
+        // Add timestamp if enabled
+        if (chatManager.getSettings().showTimestamps) {
+            const timestampDiv = document.createElement('div');
+            timestampDiv.style.fontSize = '12px';
+            timestampDiv.style.color = 'var(--text-muted)';
+            timestampDiv.style.marginTop = '8px';
+            timestampDiv.textContent = new Date().toLocaleTimeString();
+            contentDiv.appendChild(timestampDiv);
+        }
+
         messageDiv.appendChild(avatarDiv);
         messageDiv.appendChild(contentDiv);
         chatMessages.appendChild(messageDiv);
 
         chatMessages.scrollTop = chatMessages.scrollHeight;
+        updateChatHistory();
+    }
+
+    function showVideoModal(videoPath: string, audioPath?: string): void {
+        modalVideoPlayer.src = `${API_BASE_URL}${videoPath}`;
+        modalDownloadVideoLink.href = `${API_BASE_URL}${videoPath}`;
+
+        if (audioPath) {
+            modalOutputAudioPlayer.src = `${API_BASE_URL}${audioPath}`;
+            modalDownloadAudioLink.href = `${API_BASE_URL}${audioPath}`;
+            modalDownloadAudioLink.style.display = 'inline-flex';
+        } else {
+            modalDownloadAudioLink.style.display = 'none';
+        }
+
+        videoModal.style.display = 'flex';
+    }
+
+    function clearMessages(): void {
+        chatMessages.innerHTML = '';
+        showWelcomeMessage();
+    }
+
+    function showWelcomeMessage(): void {
+        const welcomeDiv = document.createElement('div');
+        welcomeDiv.classList.add('welcome-message');
+        welcomeDiv.innerHTML = `
+            <div class="welcome-content">
+                <h2>How can I help you today?</h2>
+                <p>I can help you with math, coding concepts, and image analysis.</p>
+            </div>
+            <div class="example-prompts">
+                <button class="example-prompt" data-prompt="Explain the concept of recursion in programming">
+                    <span class="prompt-title">Recursion in Programming</span>
+                    <span class="prompt-desc">Learn about recursive functions</span>
+                </button>
+                <button class="example-prompt" data-prompt="How do I solve quadratic equations?">
+                    <span class="prompt-title">Quadratic Equations</span>
+                    <span class="prompt-desc">Step-by-step math solutions</span>
+                </button>
+                <button class="example-prompt" data-prompt="Explain machine learning basics">
+                    <span class="prompt-title">Machine Learning</span>
+                    <span class="prompt-desc">AI and ML fundamentals</span>
+                </button>
+            </div>
+        `;
+        chatMessages.appendChild(welcomeDiv);
+
+        // Add event listeners to example prompts
+        welcomeDiv.querySelectorAll('.example-prompt').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const prompt = (e.currentTarget as HTMLButtonElement).dataset.prompt;
+                if (prompt) {
+                    textPromptInput.value = prompt;
+                    generateVideoFromTextBtn.click();
+                }
+            });
+        });
+    }
+
+    function updateChatHistory(): void {
+        const sessions = chatManager.getAllSessions();
+        recentChats.innerHTML = '';
+
+        sessions.forEach(session => {
+            const historyItem = document.createElement('div');
+            historyItem.classList.add('history-item');
+            if (session.id === chatManager.getCurrentSession()?.id) {
+                historyItem.classList.add('active');
+            }
+
+            historyItem.innerHTML = `
+                <span class="history-item-text">${session.title}</span>
+                <span class="history-item-delete" data-session-id="${session.id}">
+                    <i class="fas fa-trash"></i>
+                </span>
+            `;
+
+            // Click to switch session
+            historyItem.addEventListener('click', (e) => {
+                if (!(e.target as Element).closest('.history-item-delete')) {
+                    switchToSession(session.id);
+                }
+            });
+
+            // Delete session
+            const deleteBtn = historyItem.querySelector('.history-item-delete');
+            deleteBtn?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('Delete this conversation?')) {
+                    chatManager.deleteSession(session.id);
+                    updateChatHistory();
+                    if (session.id === chatManager.getCurrentSession()?.id) {
+                        startNewChat();
+                    }
+                }
+            });
+
+            recentChats.appendChild(historyItem);
+        });
+    }
+
+    function switchToSession(sessionId: string): void {
+        if (chatManager.switchToSession(sessionId)) {
+            loadCurrentSession();
+            updateChatHistory();
+            updateChatTitle();
+        }
+    }
+
+    function loadCurrentSession(): void {
+        const session = chatManager.getCurrentSession();
+        clearMessages();
+
+        if (session && session.messages.length > 0) {
+            session.messages.forEach(message => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', message.sender === 'User' ? 'user-message' : 'ai-message');
+
+                const avatarDiv = document.createElement('div');
+                avatarDiv.classList.add('message-avatar');
+                avatarDiv.textContent = message.sender === 'User' ? 'U' : 'AI';
+
+                const contentDiv = document.createElement('div');
+                contentDiv.classList.add('message-content');
+
+                if (message.sender === 'AI' && typeof marked !== 'undefined') {
+                    contentDiv.innerHTML = marked.parse(message.text);
+                } else {
+                    contentDiv.textContent = message.text;
+                }
+
+                // Add video button if video path exists
+                if (message.videoPath) {
+                    const videoBtn = document.createElement('button');
+                    videoBtn.classList.add('watch-video-btn');
+                    videoBtn.innerHTML = '<i class="fas fa-play"></i> Watch Video';
+                    videoBtn.onclick = () => {
+                        showVideoModal(message.videoPath!, message.audioPath);
+                    };
+                    contentDiv.appendChild(videoBtn);
+                }
+
+                // Add timestamp if enabled
+                if (chatManager.getSettings().showTimestamps) {
+                    const timestampDiv = document.createElement('div');
+                    timestampDiv.style.fontSize = '12px';
+                    timestampDiv.style.color = 'var(--text-muted)';
+                    timestampDiv.style.marginTop = '8px';
+                    timestampDiv.textContent = new Date(message.timestamp).toLocaleTimeString();
+                    contentDiv.appendChild(timestampDiv);
+                }
+
+                messageDiv.appendChild(avatarDiv);
+                messageDiv.appendChild(contentDiv);
+                chatMessages.appendChild(messageDiv);
+            });
+        } else {
+            showWelcomeMessage();
+        }
+
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function startNewChat(): void {
+        chatManager.createNewSession();
+        clearMessages();
+        updateChatHistory();
+        updateChatTitle();
+        resetUI();
+    }
+
+    function updateChatTitle(): void {
+        const session = chatManager.getCurrentSession();
+        if (session) {
+            chatTitle.textContent = session.title;
+        } else {
+            chatTitle.textContent = 'Manimatic AI Assistant';
+        }
     }
 
     const showSpinner = (message: string = 'Processing your request...') => {
@@ -77,33 +485,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const hideSpinner = () => {
         loadingSpinner.style.display = 'none';
-        loadingSpinner.querySelector('p')!.textContent = '';
     };
 
     const resetUI = () => {
-        // Hide the video modal and clear its content
         videoModal.style.display = 'none';
+        textOutputModal.style.display = 'none';
         modalVideoPlayer.src = '';
         modalOutputAudioPlayer.src = '';
         modalDownloadVideoLink.href = '#';
         modalDownloadAudioLink.href = '#';
-        modalDownloadAudioLink.style.display = 'none'; // Hide audio download link
-        modalOutputAudioPlayer.style.display = 'none'; // Hide audio player
 
-        // Clear extracted text output
-        extractedTextOutputSection.style.display = 'none';
-        extractedTextContent.textContent = '';
-        extractedWordCount.textContent = '';
-
-        // Reset file input display and stored file
-        currentSelectedImageFile = null; // Clear the stored file!
-        fileNameDisplay.textContent = '';
-        // imageUploadInput.value = ''; // DO NOT RESET THIS HERE, it can trigger unintended change events
-        imageActionButtons.style.display = 'none';
+        currentSelectedImageFile = null;
+        fileNameDisplay.textContent = 'No file selected';
+        fileUploadSection.style.display = 'none';
         additionalPromptInput.value = '';
         additionalPromptInput.style.height = 'auto';
 
-        hideSpinner(); // Ensure spinner is hidden on reset
+        hideSpinner();
     };
 
     const setButtonsDisabled = (disabled: boolean) => {
@@ -117,31 +515,114 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const displayError = (message: string, details?: string) => {
-        const fullMessage = `Error: ${message}${details ? ` (${details})` : ''}`;
         setButtonsDisabled(false);
-        addMessage('AI', `An error occurred: ${message}. ${details || ''}`, true);
-        hideSpinner();
-    };
-
-    const displaySuccess = (message: string) => {
-        setButtonsDisabled(false);
+        addMessage('AI', `Error: ${message}. ${details || ''}`, true);
         hideSpinner();
     };
 
     // --- Event Listeners ---
 
-    // Adjust textarea height on input
+    // New chat button
+    newChatBtn.addEventListener('click', startNewChat);
+
+    // Clear history button
+    clearHistoryBtn.addEventListener('click', () => {
+        if (confirm('Clear all conversations? This cannot be undone.')) {
+            chatManager.clearAllSessions();
+            updateChatHistory();
+            startNewChat();
+        }
+    });
+
+    // Settings button
+    settingsBtn.addEventListener('click', () => {
+        settingsModal.style.display = 'flex';
+        
+        const settings = chatManager.getSettings();
+        (document.getElementById('themeSelect') as HTMLSelectElement).value = settings.theme;
+        (document.getElementById('autoSaveChats') as HTMLInputElement).checked = settings.autoSaveChats;
+        (document.getElementById('showTimestamps') as HTMLInputElement).checked = settings.showTimestamps;
+    });
+
+    // Close modals
+    closeSettingsModal.addEventListener('click', () => {
+        settingsModal.style.display = 'none';
+    });
+
+    closeVideoModal.addEventListener('click', () => {
+        videoModal.style.display = 'none';
+        modalVideoPlayer.pause();
+        modalOutputAudioPlayer.pause();
+    });
+
+    closeTextModal.addEventListener('click', () => {
+        textOutputModal.style.display = 'none';
+    });
+
+    // Settings handlers
+    document.getElementById('themeSelect')?.addEventListener('change', (e) => {
+        const theme = (e.target as HTMLSelectElement).value as 'dark' | 'light' | 'auto';
+        chatManager.updateSettings({ theme });
+    });
+
+    document.getElementById('autoSaveChats')?.addEventListener('change', (e) => {
+        const autoSaveChats = (e.target as HTMLInputElement).checked;
+        chatManager.updateSettings({ autoSaveChats });
+    });
+
+    document.getElementById('showTimestamps')?.addEventListener('change', (e) => {
+        const showTimestamps = (e.target as HTMLInputElement).checked;
+        chatManager.updateSettings({ showTimestamps });
+        loadCurrentSession();
+    });
+
+    // Export chat button
+    exportChatBtn.addEventListener('click', () => {
+        const session = chatManager.getCurrentSession();
+        if (session) {
+            const exportData = chatManager.exportSession(session.id);
+            if (exportData) {
+                const blob = new Blob([exportData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${session.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_chat.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+    });
+
+    // Share chat button
+    shareChatBtn.addEventListener('click', async () => {
+        const session = chatManager.getCurrentSession();
+        if (session && navigator.share) {
+            try {
+                await navigator.share({
+                    title: session.title,
+                    text: `Check out this chat: ${session.title}`,
+                    url: window.location.href
+                });
+            } catch (error) {
+                console.log('Error sharing:', error);
+            }
+        }
+    });
+
+    // Auto-resize textareas
     textPromptInput.addEventListener('input', () => {
         textPromptInput.style.height = 'auto';
-        textPromptInput.style.height = textPromptInput.scrollHeight + 'px';
+        textPromptInput.style.height = Math.min(textPromptInput.scrollHeight, 120) + 'px';
     });
 
     additionalPromptInput.addEventListener('input', () => {
         additionalPromptInput.style.height = 'auto';
-        additionalPromptInput.style.height = additionalPromptInput.scrollHeight + 'px';
+        additionalPromptInput.style.height = Math.min(additionalPromptInput.scrollHeight, 80) + 'px';
     });
 
-    // Handle Enter key for text prompt
+    // Handle Enter key
     textPromptInput.addEventListener('keypress', (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
@@ -149,58 +630,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Trigger hidden file input click
+    // File upload
     uploadImageTriggerBtn.addEventListener('click', () => {
-        console.log('UPLOAD IMAGE button clicked.');
         imageUploadInput.click();
     });
 
-    // Display selected file name and show relevant buttons
     imageUploadInput.addEventListener('change', () => {
-        console.log('IMAGE FILE INPUT changed. File selected:', imageUploadInput.files?.[0]?.name);
         if (imageUploadInput.files && imageUploadInput.files.length > 0) {
-            currentSelectedImageFile = imageUploadInput.files[0]; // STORE THE FILE HERE
+            currentSelectedImageFile = imageUploadInput.files[0];
             fileNameDisplay.textContent = currentSelectedImageFile.name;
-            imageActionButtons.style.display = 'flex';
-            console.log('Image selected, action buttons should now be visible. Stored file:', currentSelectedImageFile);
-            addMessage('AI', `Image selected: \`${currentSelectedImageFile.name}\`. You can now generate a video or extract text.`);
+            fileUploadSection.style.display = 'block';
+            addMessage('AI', `Image selected: ${currentSelectedImageFile.name}. Choose an action below.`);
         } else {
-            currentSelectedImageFile = null; // CLEAR THE STORED FILE
-            fileNameDisplay.textContent = '';
-            imageActionButtons.style.display = 'none';
-            console.log('No image selected or selection cleared. Stored file cleared.');
+            currentSelectedImageFile = null;
+            fileNameDisplay.textContent = 'No file selected';
+            fileUploadSection.style.display = 'none';
         }
     });
 
-    // Close video modal when close button is clicked
-    closeVideoModal.addEventListener('click', () => {
-        videoModal.style.display = 'none';
-        modalVideoPlayer.pause(); // Pause video when closing
-        modalOutputAudioPlayer.pause(); // Pause audio when closing
+    clearImageBtn.addEventListener('click', () => {
+        currentSelectedImageFile = null;
+        fileNameDisplay.textContent = 'No file selected';
+        fileUploadSection.style.display = 'none';
+        imageUploadInput.value = '';
+        additionalPromptInput.value = '';
+        additionalPromptInput.style.height = 'auto';
     });
 
-    // Close video modal when clicking outside of the modal content
+    // Close modals when clicking outside
     window.addEventListener('click', (event) => {
         if (event.target === videoModal) {
             videoModal.style.display = 'none';
             modalVideoPlayer.pause();
             modalOutputAudioPlayer.pause();
         }
+        if (event.target === settingsModal) {
+            settingsModal.style.display = 'none';
+        }
+        if (event.target === textOutputModal) {
+            textOutputModal.style.display = 'none';
+        }
     });
 
-
-    // Generate video from Text Prompt
+    // Generate video from text
     generateVideoFromTextBtn.addEventListener('click', async () => {
-        // ... (this part remains unchanged from previous script.ts) ...
-        console.log('>>> "GENERATE VIDEO FROM IMAGE" button clicked! <<<');
+        if (!chatManager.getCurrentSession()) {
+            chatManager.createNewSession();
+        }
+
         resetUI();
         setButtonsDisabled(true);
 
         const prompt = textPromptInput.value.trim();
-        const includeNarration = includeNarrationText.checked;
 
         if (!prompt) {
-            displayError('Please enter a text prompt.');
+            displayError('Please enter a message.');
             setButtonsDisabled(false);
             return;
         }
@@ -212,39 +696,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${API_BASE_URL}/generate-video`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, includeNarration })
+                body: JSON.stringify({ prompt, includeNarration: true })
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                displaySuccess('Video generated successfully!');
-                addMessage('AI', `Video generated successfully! Click below to watch and download:`);
-                const watchButton = document.createElement('button');
-                watchButton.textContent = 'Watch Video';
-                watchButton.classList.add('modal-trigger-btn');
-                watchButton.onclick = () => {
-                    videoModal.style.display = 'flex';
-                    modalVideoPlayer.play();
-                };
-                addMessage('AI', '', false);
-                chatMessages.lastElementChild?.querySelector('.message-content')?.appendChild(watchButton);
-
-                modalVideoPlayer.src = `${API_BASE_URL}${data.videoPath}`;
-                modalDownloadVideoLink.href = `${API_BASE_URL}${data.videoPath}`;
-
-                if (data.audioPath) {
-                    modalOutputAudioPlayer.src = `${API_BASE_URL}${data.audioPath}`;
-                    modalDownloadAudioLink.href = `${API_BASE_URL}${data.audioPath}`;
-                    modalDownloadAudioLink.style.display = 'inline-flex';
-                    modalOutputAudioPlayer.style.display = 'block';
-                } else {
-                    modalDownloadAudioLink.style.display = 'none';
-                    modalOutputAudioPlayer.style.display = 'none';
-                }
-
-                videoModal.style.display = 'flex';
-
+                addMessage('AI', 'Video generated successfully! Click the button below to watch:', false, data.videoPath, data.audioPath);
             } else {
                 displayError(data.error || 'Failed to generate video from text.', data.details);
             }
@@ -259,205 +717,164 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Generate video from Image Upload
+    // Generate video from image
     generateVideoFromImageBtn.addEventListener('click', async () => {
-        console.log('>>> "GENERATE VIDEO FROM IMAGE" button clicked! <<<');
+        if (!chatManager.getCurrentSession()) {
+            chatManager.createNewSession();
+        }
+
         setButtonsDisabled(true);
 
-        // --- IMPORTANT CHANGE: Use the stored variable instead of re-reading input.files ---
         const imageFile = currentSelectedImageFile;
-        // --- END IMPORTANT CHANGE ---
-
         const additionalPrompt = additionalPromptInput.value.trim();
-        const includeNarration = includeNarrationImage.checked;
-
-        console.log('   - imageFile (from stored variable):', imageFile);
-        console.log('   - additionalPrompt:', additionalPrompt);
-        console.log('   - includeNarration:', includeNarration);
-
 
         if (!imageFile) {
-            displayError('Please select an image file to generate video from.');
+            displayError('Please select an image file.');
             setButtonsDisabled(false);
-            console.error('ERROR: imageFile is missing. Execution stopped before fetch.');
             return;
         }
 
-        addMessage('User', `Generating video from image: \`${imageFile.name}\`${additionalPrompt ? ` with additional prompt: "${additionalPrompt}"` : ''}`);
+        addMessage('User', `Generating video from image: ${imageFile.name}${additionalPrompt ? ` with prompt: "${additionalPrompt}"` : ''}`);
         showSpinner('Uploading image and generating video...');
 
         const formData = new FormData();
         formData.append('image', imageFile);
-        formData.append('includeNarration', String(includeNarration));
+        formData.append('includeNarration', 'true');
         if (additionalPrompt) {
             formData.append('additionalPrompt', additionalPrompt);
         }
 
-        console.log('Sending FormData:');
-        for (let [key, value] of formData.entries()) {
-            console.log(`    - FormData Key: ${key}, Value: ${value}`);
-        }
-
         try {
-            console.log('Attempting to FETCH to /generate-video-from-image...');
             const response = await fetch(`${API_BASE_URL}/generate-video-from-image`, {
                 method: 'POST',
                 body: formData
             });
-            console.log('Fetch response received.');
 
             const responseText = await response.text();
-            console.log('Raw server response text:', responseText);
-
             let data;
             try {
                 data = JSON.parse(responseText);
-                console.log('Parsed JSON data:', data);
             } catch (jsonError) {
-                console.error('ERROR: Failed to parse server response as JSON.', jsonError);
-                displayError('Server returned non-JSON response.', responseText.substring(0, 500) + '...');
+                displayError('Server returned invalid response.', responseText.substring(0, 200));
                 return;
             }
 
             if (response.ok) {
-                displaySuccess('Video generated from image successfully!');
-                let aiMessage = `Video generated from image successfully!`;
+                let aiMessage = 'Video generated from image successfully!';
                 if (data.extractedText) {
-                    aiMessage += `\n\n**Extracted Text:**\n\`\`\`\n${data.extractedText.substring(0, 500)}${data.extractedText.length > 500 ? '...' : ''}\n\`\`\``;
-                    extractedTextOutputSection.style.display = 'block';
-                    extractedTextContent.textContent = data.extractedText;
-                    extractedWordCount.textContent = `Word Count: ${data.wordCount}`;
+                    aiMessage += `\n\nExtracted text: "${data.extractedText.substring(0, 100)}${data.extractedText.length > 100 ? '...' : ''}"`;
                 }
-                aiMessage += `\n\nClick below to watch and download:`;
-                addMessage('AI', aiMessage);
-
-                const watchButton = document.createElement('button');
-                watchButton.textContent = 'Watch Video';
-                watchButton.classList.add('modal-trigger-btn');
-                watchButton.onclick = () => {
-                    videoModal.style.display = 'flex';
-                    modalVideoPlayer.play();
-                };
-                addMessage('AI', '', false);
-                chatMessages.lastElementChild?.querySelector('.message-content')?.appendChild(watchButton);
-
-
-                modalVideoPlayer.src = `${API_BASE_URL}${data.videoPath}`;
-                modalDownloadVideoLink.href = `${API_BASE_URL}${data.videoPath}`;
-
-                if (data.audioPath) {
-                    modalOutputAudioPlayer.src = `${API_BASE_URL}${data.audioPath}`;
-                    modalDownloadAudioLink.href = `${API_BASE_URL}${data.audioPath}`;
-                    modalDownloadAudioLink.style.display = 'inline-flex';
-                    modalOutputAudioPlayer.style.display = 'block';
-                } else {
-                    modalDownloadAudioLink.style.display = 'none';
-                    modalOutputAudioPlayer.style.display = 'none';
-                }
-
-                videoModal.style.display = 'flex';
-
+                addMessage('AI', aiMessage, false, data.videoPath, data.audioPath);
             } else {
                 displayError(data.error || 'Failed to generate video from image.', data.details);
             }
         } catch (error: any) {
-            console.error('FATAL ERROR during fetch or processing:', error);
-            displayError(`Network error or processing issue: ${error.message}`);
+            console.error('Error:', error);
+            displayError(`Network error: ${error.message}`);
         } finally {
-            resetUI(); // resetUI will now clear currentSelectedImageFile
+            resetUI();
             setButtonsDisabled(false);
-            // Clear the file input's value only if you want to visually reset it,
-            // but the `currentSelectedImageFile = null;` in `resetUI` is what truly matters.
-            imageUploadInput.value = ''; // This line is fine to keep for visual reset.
-            fileNameDisplay.textContent = ''; // Clear the text display
-            currentSelectedImageFile = null; // Ensure the stored file is cleared after a submit attempt
-            additionalPromptInput.value = '';
-            additionalPromptInput.style.height = 'auto';
-            imageActionButtons.style.display = 'none';
             hideSpinner();
-            console.log('--- "Generate Video from Image" button handler finished ---');
         }
     });
 
-    // Extract Text from Image Only
+    // Extract text from image
     extractTextBtn.addEventListener('click', async () => {
-        console.log('>>> "EXTRACT TEXT" button clicked! <<<');
+        if (!chatManager.getCurrentSession()) {
+            chatManager.createNewSession();
+        }
+
         setButtonsDisabled(true);
 
-        // --- IMPORTANT CHANGE: Use the stored variable ---
         const imageFile = currentSelectedImageFile;
-        // --- END IMPORTANT CHANGE ---
 
         if (!imageFile) {
-            displayError('Please select an image file to extract text from.');
+            displayError('Please select an image file.');
             setButtonsDisabled(false);
-            console.error('ERROR: imageFile is missing for text extraction.');
             return;
         }
 
-        addMessage('User', `Extracting text from image: \`${imageFile.name}\``);
+        addMessage('User', `Extracting text from image: ${imageFile.name}`);
         showSpinner('Uploading image and extracting text...');
 
         const formData = new FormData();
         formData.append('image', imageFile);
 
-        console.log('Sending FormData for text extraction:');
-        for (let [key, value] of formData.entries()) {
-            console.log(`    - FormData Key: ${key}, Value: ${value}`);
-        }
-
         try {
-            console.log('Attempting to FETCH to /extract-text...');
             const response = await fetch(`${API_BASE_URL}/extract-text`, {
                 method: 'POST',
                 body: formData
             });
-            console.log('Fetch response received.');
 
             const responseText = await response.text();
-            console.log('Raw server response text:', responseText);
-
             let data;
             try {
                 data = JSON.parse(responseText);
-                console.log('Parsed JSON data for text extraction:', data);
             } catch (jsonError) {
-                console.error('ERROR: Failed to parse server response as JSON for text extraction.', jsonError);
-                displayError('Server returned non-JSON response.', responseText.substring(0, 500) + '...');
+                displayError('Server returned invalid response.', responseText.substring(0, 200));
                 return;
             }
 
             if (response.ok) {
-                displaySuccess('Text extracted successfully!');
-                let aiMessage = `Text extracted successfully!`;
                 if (data.extractedText) {
-                    aiMessage += `\n\n\`\`\`\n${data.extractedText}\n\`\`\`\n`;
-                    extractedTextOutputSection.style.display = 'block';
                     extractedTextContent.textContent = data.extractedText;
-                    extractedWordCount.textContent = `Word Count: ${data.wordCount}`;
+                    extractedWordCount.textContent = `Word count: ${data.wordCount || 0}`;
+                    textOutputModal.style.display = 'flex';
+                    addMessage('AI', `Text extracted successfully!\n\n"${data.extractedText.substring(0, 200)}${data.extractedText.length > 200 ? '...' : ''}"`);
+                } else {
+                    addMessage('AI', 'No text found in the image.');
                 }
-                addMessage('AI', aiMessage);
             } else {
                 displayError(data.error || 'Failed to extract text.', data.details);
             }
         } catch (error: any) {
-            console.error('FATAL ERROR during text extraction fetch or processing:', error);
-            displayError(`Network error or processing issue: ${error.message}`);
+            console.error('Error:', error);
+            displayError(`Network error: ${error.message}`);
         } finally {
             resetUI();
             setButtonsDisabled(false);
-            imageUploadInput.value = ''; // Visual reset
-            fileNameDisplay.textContent = '';
-            currentSelectedImageFile = null; // Ensure stored file is cleared
-            imageActionButtons.style.display = 'none';
             hideSpinner();
-            console.log('--- "Extract Text" button handler finished ---');
         }
     });
 
-    // Initial UI setup when page loads
-    resetUI();
-    setButtonsDisabled(false);
-    addMessage('AI', "Hello! I'm your Manimatic AI Assistant. Tell me what math or coding concept you'd like a video explanation for, or upload an image to extract text!");
-    console.log('Initial UI setup complete.');
+    // Initialize the application
+    function initializeApp(): void {
+        // Start with a new session if none exists
+        if (!chatManager.getCurrentSession()) {
+            chatManager.createNewSession();
+        }
+
+        // Load current session
+        loadCurrentSession();
+        updateChatHistory();
+        updateChatTitle();
+
+        // Show welcome message if no messages
+        const session = chatManager.getCurrentSession();
+        if (!session || session.messages.length === 0) {
+            showWelcomeMessage();
+        }
+
+        console.log('Application initialized successfully.');
+    }
+
+    // Auto-save functionality
+    setInterval(() => {
+        if (chatManager.getSettings().autoSaveChats) {
+            const session = chatManager.getCurrentSession();
+            if (session) {
+                session.updatedAt = Date.now();
+            }
+        }
+    }, 30000);
+
+    // Handle system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (chatManager.getSettings().theme === 'auto') {
+            chatManager.applySettings();
+        }
+    });
+
+    // Initialize the application
+    initializeApp();
 });

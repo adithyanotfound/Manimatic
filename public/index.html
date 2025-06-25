@@ -6,98 +6,225 @@
     <title>Manimatic AI Assistant</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="app-container">
         <aside class="sidebar">
             <div class="sidebar-header">
                 <button id="newChatBtn" class="new-chat-btn">
-                    <i class="fas fa-plus"></i> New Chat
+                    <i class="fas fa-plus"></i>
+                    New chat
                 </button>
             </div>
-            <div class="chat-history">
-                <div class="history-item">Two Sum Problem</div>
+            
+            <div class="chat-history" id="chatHistory">
+                <div id="recentChats" class="history-items">
+                    <!-- Recent chats will be populated here -->
                 </div>
+            </div>
+            
             <div class="sidebar-footer">
-                <button class="settings-btn"><i class="fas fa-cog"></i> Settings</button>
-                <button class="mode-toggle-btn"><i class="fas fa-moon"></i> Dark/Light Mode</button>
+                <button class="sidebar-btn" id="clearHistoryBtn">
+                    <i class="fas fa-trash"></i>
+                    Clear conversations
+                </button>
+                <button class="sidebar-btn" id="settingsBtn">
+                    <i class="fas fa-cog"></i>
+                    Settings
+                </button>
             </div>
         </aside>
 
         <main class="chat-main">
             <header class="chat-header">
-                <h1>Manimatic AI Assistant</h1>
+                <div class="chat-title-container">
+                    <h1 id="chatTitle">Manimatic AI Assistant</h1>
+                </div>
+                <div class="chat-actions">
+                    <button class="header-btn" id="exportChatBtn" title="Export Chat">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="header-btn" id="shareChatBtn" title="Share Chat">
+                        <i class="fas fa-share"></i>
+                    </button>
+                </div>
             </header>
 
             <div class="chat-messages" id="chatMessages">
+                <div class="welcome-message">
+                    <div class="welcome-content">
+                        <h2>How can I help you today?</h2>
+                        <p>I can help you with math, coding concepts, and image analysis.</p>
+                    </div>
+                    <div class="example-prompts">
+                        <button class="example-prompt" data-prompt="Explain the concept of recursion in programming">
+                            <span class="prompt-title">Recursion in Programming</span>
+                            <span class="prompt-desc">Learn about recursive functions</span>
+                        </button>
+                        <button class="example-prompt" data-prompt="How do I solve quadratic equations?">
+                            <span class="prompt-title">Quadratic Equations</span>
+                            <span class="prompt-desc">Step-by-step math solutions</span>
+                        </button>
+                        <button class="example-prompt" data-prompt="Explain machine learning basics">
+                            <span class="prompt-title">Machine Learning</span>
+                            <span class="prompt-desc">AI and ML fundamentals</span>
+                        </button>
+                    </div>
                 </div>
+            </div>
 
-            <div class="chat-input-area">
-                <div class="input-row">
-                    <textarea id="promptInput" placeholder="Send a message..." rows="1"></textarea>
-                    <button id="sendPromptBtn" class="send-btn" title="Send Prompt">
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
+            <div class="chat-input-container">
+                <div class="chat-input-wrapper">
+                    <div class="input-section">
+                        <div class="main-input-row">
+                            <textarea 
+                                id="promptInput" 
+                                placeholder="Message Manimatic AI Assistant..." 
+                                rows="1"
+                                class="main-input"
+                            ></textarea>
+                            <button id="sendPromptBtn" class="send-btn" title="Send message">
+                                <i class="fas fa-arrow-up"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="file-upload-section" style="display: none;" id="fileUploadSection">
+                            <div class="file-info">
+                                <i class="fas fa-image"></i>
+                                <span id="fileNameDisplay">No file selected</span>
+                                <button id="clearImageBtn" class="clear-file-btn" title="Remove file">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="additional-prompt-row">
+                                <textarea 
+                                    id="additionalPromptInput" 
+                                    placeholder="Additional prompt for image analysis (optional)..." 
+                                    rows="1"
+                                    class="additional-input"
+                                ></textarea>
+                            </div>
+                            <div class="image-action-buttons" id="imageActionButtons">
+                                <button id="sendImagePromptBtn" class="action-btn">
+                                    <i class="fas fa-video"></i>
+                                    Generate Video
+                                </button>
+                                <button id="extractTextBtn" class="action-btn">
+                                    <i class="fas fa-file-alt"></i>
+                                    Extract Text
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="input-actions">
+                        <button id="uploadImageBtn" class="input-action-btn" title="Attach image">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                        <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                    </div>
                 </div>
-
-                <div class="upload-row">
-                    <input type="file" id="imageUpload" accept="image/*" style="display: none;">
-                    <button id="uploadImageBtn" class="upload-btn" title="Upload Image">
-                        <i class="fas fa-image"></i> Upload Image
-                    </button>
-                    <span id="fileNameDisplay" class="file-name-display"></span>
+                
+                <div class="input-footer">
+                    <p>Manimatic AI can make mistakes. Check important info.</p>
                 </div>
+            </div>
 
-                <div class="input-row">
-                    <textarea id="additionalPromptInput" placeholder="Add an additional prompt for image-based generation (optional)..." rows="1"></textarea>
-                </div>
-
-                <div class="action-buttons-row" style="display: none;" id="imageActionButtons">
-                    <button id="sendImagePromptBtn" class="send-btn" title="Generate Video from Image">
-                        <i class="fas fa-video"></i> Generate Video from Image
-                    </button>
-                    <button id="extractTextBtn" class="send-btn" title="Extract Text Only">
-                        <i class="fas fa-file-alt"></i> Extract Text Only
-                    </button>
-                </div>
-
-                <div style="display: none;">
-                    <label>
-                        <input type="checkbox" id="includeNarrationText" checked> Include Narration (Text Prompt)
-                    </label>
-                    <label>
-                        <input type="checkbox" id="includeNarrationImage" checked> Include Narration (Image Prompt)
-                    </label>
-                </div>
-
-                <div class="loading-spinner" id="loadingSpinner" style="display: none;">
-                    <i class="fas fa-spinner fa-spin fa-2x"></i>
-                    <p>Processing request...</p>
-                </div>
-
-                <div class="extracted-text-output" id="extractedTextOutputSection" style="display: none;">
-                    <h3>Extracted Text:</h3>
-                    <p id="extractedTextContent"></p>
-                    <p id="extractedWordCount"></p>
+            <div class="loading-overlay" id="loadingSpinner" style="display: none;">
+                <div class="loading-content">
+                    <div class="loading-spinner"></div>
+                    <p>Processing your request...</p>
                 </div>
             </div>
         </main>
     </div>
 
+    <!-- Video Modal -->
     <div id="videoModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" id="closeVideoModal">&times;</span>
-            <h2 class="modal-title">Generated Video</h2>
-            <video id="modalVideoPlayer" controls autoplay></video>
-            <div class="modal-actions">
-                <a id="modalDownloadVideoLink" href="#" download="manimatic_video.mp4" class="modal-download-btn">
-                    <i class="fas fa-download"></i> Download Video
-                </a>
-                <a id="modalDownloadAudioLink" href="#" download="manimatic_audio.mp3" class="modal-download-btn modal-audio-download-btn" style="display: none;">
-                    <i class="fas fa-music"></i> Download Audio
-                </a>
+            <div class="modal-header">
+                <h2>Generated Video</h2>
+                <button class="modal-close" id="closeVideoModal">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <audio id="modalOutputAudioPlayer" controls class="hidden-audio-player"></audio>
+            <div class="modal-body">
+                <video id="modalVideoPlayer" controls></video>
+                <div class="modal-actions">
+                    <a id="modalDownloadVideoLink" href="#" download="video.mp4" class="download-btn">
+                        <i class="fas fa-download"></i>
+                        Download Video
+                    </a>
+                    <a id="modalDownloadAudioLink" href="#" download="audio.mp3" class="download-btn" style="display: none;">
+                        <i class="fas fa-music"></i>
+                        Download Audio
+                    </a>
+                </div>
+            </div>
+            <audio id="modalOutputAudioPlayer" controls style="display: none;"></audio>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="modal-close" id="closeSettingsModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>Appearance</h3>
+                    <div class="setting-item">
+                        <label>Theme</label>
+                        <select id="themeSelect">
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                            <option value="auto">System</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3>Chat</h3>
+                    <div class="setting-item checkbox-item">
+                        <label>
+                            <input type="checkbox" id="autoSaveChats" checked>
+                            <span class="checkmark"></span>
+                            Auto-save conversations
+                        </label>
+                    </div>
+                    <div class="setting-item checkbox-item">
+                        <label>
+                            <input type="checkbox" id="showTimestamps">
+                            <span class="checkmark"></span>
+                            Show timestamps
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Text Output Modal -->
+    <div id="textOutputModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Extracted Text</h2>
+                <button class="modal-close" id="closeTextModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="text-output">
+                    <p id="extractedTextContent"></p>
+                    <div class="text-stats">
+                        <span id="extractedWordCount"></span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
