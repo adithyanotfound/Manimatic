@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "tsc -b && node dist/server-v3.js",
-    "test": "tsc -b && node dist/test.js"
+    "dev": "tsc -b && node dist/src/server-v3.js",
+    "start": "tsc -b && node dist/src/server-v4.js"
   },
   "keywords": [],
   "author": "",
