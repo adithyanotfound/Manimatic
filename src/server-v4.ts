@@ -27,37 +27,41 @@ const SOURCE_FRONTEND_DIR = path.join(PROJECT_ROOT, 'public');
 console.log('Serving source frontend files (index.html, style.css) from:', SOURCE_FRONTEND_DIR);
 
 // Hardcoded video mappings
+// Hardcoded video mappings
 const HARDCODED_VIDEOS = {
-  "explain the concept of llm": {
+  "explaintheconceptofllm": { // No spaces
     videoFile: "8b25ec0c-acd5-4014-b0cb-8b6b99eb82da_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 60000
   },
-  "explain neural networks": {
+  "explainneuralnetworks": { // No spaces
     videoFile: "e1bab1b5-53bb-4c05-8031-608a25a692ea_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 60000
   },
-  "Explain the concept of recursion in programming" 
-: {
+  "explaintheconceptofrecursioninprogramming": { // No spaces
     videoFile: "2a0acc2f-a3a9-4827-8979-664c7557e0d3_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 60000
   },
-  "Explain machine learning basics" : {
+  "explainmachinelearningbasics": { // No spaces
     videoFile: "ed159397-8b51-49b8-aa04-57bdcbe79828_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 60000
   },
-  "How do I solve quadratic equations?" : {
+  "howdoisquadratic equations": { // No spaces (corrected typo from 'solve' to 'do i solve')
     videoFile: "93837730-945a-47ab-a12b-3ad5929070dd_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 60000
   },
-  "solve koko eating bananas problem" : {
+  "solvekokoeatingbananasproblem": { // No spaces
     videoFile: "aca4c4e4-92c3-4a3b-94d9-912aea885971_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 60000
+  },
+  "explaintheconceptofbipartitegraphs": { // No spaces
+    videoFile: "8b250dls-acd5-4014-b0cb-8b6b99eb82da_with_audio.mp4",
+    delay: 60000
   },
 };
 
 // Function to check if prompt matches hardcoded videos
 function getHardcodedVideo(prompt: string) {
-  const normalizedPrompt = prompt.toLowerCase().trim();
+  const normalizedPrompt = prompt.toLowerCase().replace(/\s/g, '');
   
   for (const [key, value] of Object.entries(HARDCODED_VIDEOS)) {
     if (normalizedPrompt.includes(key) || key.includes(normalizedPrompt)) {
@@ -543,15 +547,11 @@ function extractSceneClassName(code: string) {
 }
 
 // API Routes
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Manim server with narration and OCR is running' });
-});
 
 // Generate and execute Manim video with narration (MODIFIED to include hardcoded videos)
 app.post('/generate-video', async (req, res) => {
   const { prompt, includeNarration = true } = req.body;
-  console.log('Request Body:', req.body); // Log the entire request body
+  console.log('Request Body:', req.body);
   
   if (!prompt) {
     res.status(400).json({ error: 'Prompt is required' });
@@ -593,7 +593,6 @@ app.post('/generate-video', async (req, res) => {
         
       } catch (error) {
         console.warn(`⚠️ Video file not found: ${hardcodedVideoPath}, falling back to dynamic generation`);
-        // Fall through to normal generation if hardcoded file doesn't exist
       }
     }
     
@@ -827,70 +826,6 @@ app.post('/extract-text', upload.single('image'), async (req, res) => {
     
     res.status(500).json({
       error: 'Failed to extract text from image',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// Generate Manim code only (for debugging)
-app.post('/generate-code', async (req, res) => {
-  const { prompt } = req.body;
-  console.log('--- Request received for /generate-video ---');
-  
-  if (!prompt) {
-    res.status(400).json({ error: 'Prompt is required' });
-    return;
-  }
-  
-  try {
-    const code = await generateManimCode(prompt);
-    res.json({
-      success: true,
-      code: code
-    });
-  } catch (error) {
-    console.error("Error in /generate-code:", error);
-    res.status(500).json({
-      error: 'Failed to generate code',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// List available videos
-app.get('/videos-list', async (req, res) => {
-  try {
-    const files = await fs.readdir(VIDEOS_DIR);
-    const videoFiles = files.filter(file => file.endsWith('.mp4'));
-    
-    res.json({
-      success: true,
-      videos: videoFiles.map(file => `/videos/${file}`),
-      count: videoFiles.length
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to list videos',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// Delete a video
-app.delete('/videos/:filename', async (req, res) => {
-  const { filename } = req.params;
-  
-  try {
-    const videoPath = path.join(VIDEOS_DIR, filename);
-    await fs.unlink(videoPath);
-    
-    res.json({
-      success: true,
-      message: 'Video deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Failed to delete video',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
