@@ -1,5 +1,4 @@
-// Enhanced script.ts with fixed video functionality and v0.dev-style UI
-declare const marked: any;
+declare const marked: any; // Assuming 'marked' is loaded globally, e.g., from a CDN
 
 interface ChatMessage {
     id: string;
@@ -69,7 +68,7 @@ class ChatManager {
 
     private saveSessions(): void {
         if (!this.settings.autoSaveChats) return;
-        
+
         try {
             const sessionsData = Object.fromEntries(this.sessions);
             localStorage.setItem('manimatic_sessions', JSON.stringify(sessionsData));
@@ -153,7 +152,8 @@ class ChatManager {
     public deleteSession(sessionId: string): boolean {
         if (this.sessions.delete(sessionId)) {
             if (this.currentSessionId === sessionId) {
-                this.currentSessionId = null;
+                // If the deleted session was current, clear currentSessionId
+                this.currentSessionId = null; 
             }
             this.saveSessions();
             return true;
@@ -192,6 +192,7 @@ class ChatManager {
         return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log("--- Enhanced v0.dev-style script loaded ---");
@@ -250,7 +251,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_BASE_URL = 'http://localhost:3000';
 
     // --- UI Update Functions ---
+
+    /**
+     * Shows the welcome message in the chat display.
+     * Ensures the welcome message HTML is present and visible.
+     */
+    function showWelcomeMessage(): void {
+        // First, check if the welcome message element already exists
+        let welcomeMessageElement = document.querySelector('.welcome-message') as HTMLDivElement;
+
+        if (!welcomeMessageElement) {
+            // If it doesn't exist, create and append it once
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = `
+                <div class="welcome-message">
+                    <div class="welcome-content">
+                        <h2>How can I help you today?</h2>
+                        <p>I can help you with math, coding concepts, and image analysis.</p>
+                    </div>
+                    <div class="example-prompts">
+                        <button class="example-prompt" data-prompt="Explain the concept of recursion in programming">
+                            <span class="prompt-title">Recursion in Programming</span>
+                            <span class="prompt-desc">Learn about recursive functions</span>
+                        </button>
+                        <button class="example-prompt" data-prompt="How do I solve quadratic equations?">
+                            <span class="prompt-title">Quadratic Equations</span>
+                            <span class="prompt-desc">Step-by-step math solutions</span>
+                        </button>
+                        <button class="example-prompt" data-prompt="Explain machine learning basics">
+                            <span class="prompt-title">Machine Learning</span>
+                            <span class="prompt-desc">AI and ML fundamentals</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+            welcomeMessageElement = tempDiv.firstElementChild as HTMLDivElement;
+            chatMessages.appendChild(welcomeMessageElement);
+        }
+
+        // Ensure it's visible
+        welcomeMessageElement.style.display = 'block'; 
+
+        // Attach event listeners for example prompts (delegated or directly on new elements)
+        // Using a delegated event listener on `chatMessages` for robustness
+        // The individual buttons within the welcome message will be handled by the DOMContentLoaded event listener later.
+    }
+
+    /**
+     * Hides the welcome message from the chat display.
+     */
+    function hideWelcomeMessage(): void {
+        const welcomeMessageElement = document.querySelector('.welcome-message') as HTMLDivElement;
+        if (welcomeMessageElement) {
+            welcomeMessageElement.style.display = 'none';
+        }
+    }
+
+
     function addMessage(sender: 'User' | 'AI', text: string, isError: boolean = false, videoPath?: string, audioPath?: string): void {
+        // Hide welcome message as soon as a real message is added
+        hideWelcomeMessage(); 
+        
         // Add to chat manager
         chatManager.addMessage(sender, text, isError, videoPath, audioPath);
 
@@ -315,46 +376,12 @@ document.addEventListener('DOMContentLoaded', () => {
         videoModal.style.display = 'flex';
     }
 
-    function clearMessages(): void {
+    /**
+     * Clears all messages from the chat display, but does NOT automatically show welcome message.
+     * Use `startNewChat` or `loadCurrentSession` to manage welcome message visibility.
+     */
+    function clearMessagesDisplay(): void {
         chatMessages.innerHTML = '';
-        showWelcomeMessage();
-    }
-
-    function showWelcomeMessage(): void {
-        const welcomeDiv = document.createElement('div');
-        welcomeDiv.classList.add('welcome-message');
-        welcomeDiv.innerHTML = `
-            <div class="welcome-content">
-                <h2>How can I help you today?</h2>
-                <p>I can help you with math, coding concepts, and image analysis.</p>
-            </div>
-            <div class="example-prompts">
-                <button class="example-prompt" data-prompt="Explain the concept of recursion in programming">
-                    <span class="prompt-title">Recursion in Programming</span>
-                    <span class="prompt-desc">Learn about recursive functions</span>
-                </button>
-                <button class="example-prompt" data-prompt="How do I solve quadratic equations?">
-                    <span class="prompt-title">Quadratic Equations</span>
-                    <span class="prompt-desc">Step-by-step math solutions</span>
-                </button>
-                <button class="example-prompt" data-prompt="Explain machine learning basics">
-                    <span class="prompt-title">Machine Learning</span>
-                    <span class="prompt-desc">AI and ML fundamentals</span>
-                </button>
-            </div>
-        `;
-        chatMessages.appendChild(welcomeDiv);
-
-        // Add event listeners to example prompts
-        welcomeDiv.querySelectorAll('.example-prompt').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const prompt = (e.currentTarget as HTMLButtonElement).dataset.prompt;
-                if (prompt) {
-                    textPromptInput.value = prompt;
-                    generateVideoFromTextBtn.click();
-                }
-            });
-        });
     }
 
     function updateChatHistory(): void {
@@ -385,11 +412,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Delete session
             const deleteBtn = historyItem.querySelector('.history-item-delete');
             deleteBtn?.addEventListener('click', (e) => {
-                e.stopPropagation();
+                e.stopPropagation(); // Prevent switching session when deleting
                 if (confirm('Delete this conversation?')) {
                     chatManager.deleteSession(session.id);
                     updateChatHistory();
-                    if (session.id === chatManager.getCurrentSession()?.id) {
+                    // If the deleted session was the current one, start a new chat
+                    if (!chatManager.getCurrentSession() || chatManager.getCurrentSession()?.id === session.id) {
                         startNewChat();
                     }
                 }
@@ -404,15 +432,19 @@ document.addEventListener('DOMContentLoaded', () => {
             loadCurrentSession();
             updateChatHistory();
             updateChatTitle();
+            resetUI(); // Reset UI state (e.g., image upload section)
         }
     }
 
     function loadCurrentSession(): void {
         const session = chatManager.getCurrentSession();
-        clearMessages();
+        clearMessagesDisplay(); // Clear display before loading new messages
 
         if (session && session.messages.length > 0) {
             session.messages.forEach(message => {
+                // Re-add messages to the DOM. Do NOT call addMessage here,
+                // as addMessage also adds to chatManager and calls hideWelcomeMessage().
+                // We are just *displaying* existing messages.
                 const messageDiv = document.createElement('div');
                 messageDiv.classList.add('message', message.sender === 'User' ? 'user-message' : 'ai-message');
 
@@ -429,7 +461,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     contentDiv.textContent = message.text;
                 }
 
-                // Add video button if video path exists
                 if (message.videoPath) {
                     const videoBtn = document.createElement('button');
                     videoBtn.classList.add('watch-video-btn');
@@ -440,7 +471,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     contentDiv.appendChild(videoBtn);
                 }
 
-                // Add timestamp if enabled
                 if (chatManager.getSettings().showTimestamps) {
                     const timestampDiv = document.createElement('div');
                     timestampDiv.style.fontSize = '12px';
@@ -454,8 +484,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 messageDiv.appendChild(contentDiv);
                 chatMessages.appendChild(messageDiv);
             });
+            hideWelcomeMessage(); // Hide welcome message if there are messages
         } else {
-            showWelcomeMessage();
+            showWelcomeMessage(); // Show welcome message if the session is empty
         }
 
         chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -463,10 +494,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function startNewChat(): void {
         chatManager.createNewSession();
-        clearMessages();
+        clearMessagesDisplay(); // Clear the UI display
+        showWelcomeMessage(); // Show welcome for new, empty chat
         updateChatHistory();
         updateChatTitle();
-        resetUI();
+        resetUI(); // Clear input fields and image selection
     }
 
     function updateChatTitle(): void {
@@ -500,6 +532,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fileUploadSection.style.display = 'none';
         additionalPromptInput.value = '';
         additionalPromptInput.style.height = 'auto';
+        textPromptInput.value = ''; // Also clear main text input
+        textPromptInput.style.height = 'auto'; // Reset height
 
         hideSpinner();
     };
@@ -512,6 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
         textPromptInput.disabled = disabled;
         additionalPromptInput.disabled = disabled;
         imageUploadInput.disabled = disabled;
+        clearImageBtn.disabled = disabled; // Add this one too
     };
 
     const displayError = (message: string, details?: string) => {
@@ -519,6 +554,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessage('AI', `Error: ${message}. ${details || ''}`, true);
         hideSpinner();
     };
+
 
     // --- Event Listeners ---
 
@@ -530,14 +566,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirm('Clear all conversations? This cannot be undone.')) {
             chatManager.clearAllSessions();
             updateChatHistory();
-            startNewChat();
+            startNewChat(); // Start a fresh, empty chat
         }
     });
 
     // Settings button
     settingsBtn.addEventListener('click', () => {
         settingsModal.style.display = 'flex';
-        
+
         const settings = chatManager.getSettings();
         (document.getElementById('themeSelect') as HTMLSelectElement).value = settings.theme;
         (document.getElementById('autoSaveChats') as HTMLInputElement).checked = settings.autoSaveChats;
@@ -573,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('showTimestamps')?.addEventListener('change', (e) => {
         const showTimestamps = (e.target as HTMLInputElement).checked;
         chatManager.updateSettings({ showTimestamps });
-        loadCurrentSession();
+        loadCurrentSession(); // Reload current session messages to apply timestamp changes
     });
 
     // Export chat button
@@ -605,9 +641,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     text: `Check out this chat: ${session.title}`,
                     url: window.location.href
                 });
-            } catch (error) {
-                console.log('Error sharing:', error);
+            } catch (error: any) {
+                // User cancelled or other error
+                console.log('Error sharing:', error.message);
             }
+        } else {
+            alert("Share functionality not supported in this browser.");
         }
     });
 
@@ -622,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
         additionalPromptInput.style.height = Math.min(additionalPromptInput.scrollHeight, 80) + 'px';
     });
 
-    // Handle Enter key
+    // Handle Enter key for text input
     textPromptInput.addEventListener('keypress', (event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
@@ -630,17 +669,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // File upload
+    // File upload trigger
     uploadImageTriggerBtn.addEventListener('click', () => {
         imageUploadInput.click();
     });
 
+    // Image file selection handler
     imageUploadInput.addEventListener('change', () => {
         if (imageUploadInput.files && imageUploadInput.files.length > 0) {
             currentSelectedImageFile = imageUploadInput.files[0];
             fileNameDisplay.textContent = currentSelectedImageFile.name;
             fileUploadSection.style.display = 'block';
             addMessage('AI', `Image selected: ${currentSelectedImageFile.name}. Choose an action below.`);
+            // When an image is selected, the primary text input should usually be cleared
+            textPromptInput.value = ''; 
+            textPromptInput.style.height = 'auto';
         } else {
             currentSelectedImageFile = null;
             fileNameDisplay.textContent = 'No file selected';
@@ -648,13 +691,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Clear image selection
     clearImageBtn.addEventListener('click', () => {
         currentSelectedImageFile = null;
         fileNameDisplay.textContent = 'No file selected';
         fileUploadSection.style.display = 'none';
-        imageUploadInput.value = '';
+        imageUploadInput.value = ''; // Clear the input so same file can be selected again
         additionalPromptInput.value = '';
         additionalPromptInput.style.height = 'auto';
+        addMessage('AI', 'Image selection cleared.'); // Inform the user
     });
 
     // Close modals when clicking outside
@@ -671,25 +716,38 @@ document.addEventListener('DOMContentLoaded', () => {
             textOutputModal.style.display = 'none';
         }
     });
+    
+    // Delegated event listener for example prompts inside welcome message
+    // This handles clicks on example prompts even if they are dynamically added/removed
+    chatMessages.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+        const examplePromptButton = target.closest('.example-prompt') as HTMLButtonElement;
+        if (examplePromptButton) {
+            const prompt = examplePromptButton.dataset.prompt;
+            if (prompt) {
+                textPromptInput.value = prompt; // Set the prompt in the input field
+                generateVideoFromTextBtn.click(); // Simulate clicking the send button
+            }
+        }
+    });
 
     // Generate video from text
     generateVideoFromTextBtn.addEventListener('click', async () => {
-        if (!chatManager.getCurrentSession()) {
-            chatManager.createNewSession();
-        }
-
-        resetUI();
-        setButtonsDisabled(true);
-
         const prompt = textPromptInput.value.trim();
 
         if (!prompt) {
             displayError('Please enter a message.');
-            setButtonsDisabled(false);
-            return;
+            return; // Exit if prompt is empty
         }
 
+        // Add user message to chat history immediately
         addMessage('User', prompt);
+        
+        // Clear input after sending
+        textPromptInput.value = '';
+        textPromptInput.style.height = 'auto'; // Reset height
+
+        setButtonsDisabled(true);
         showSpinner('Generating video from text...');
 
         try {
@@ -711,18 +769,12 @@ document.addEventListener('DOMContentLoaded', () => {
             displayError(`Network error: ${error.message}`);
         } finally {
             setButtonsDisabled(false);
-            textPromptInput.value = '';
-            textPromptInput.style.height = 'auto';
             hideSpinner();
         }
     });
 
     // Generate video from image
     generateVideoFromImageBtn.addEventListener('click', async () => {
-        if (!chatManager.getCurrentSession()) {
-            chatManager.createNewSession();
-        }
-
         setButtonsDisabled(true);
 
         const imageFile = currentSelectedImageFile;
@@ -772,7 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error:', error);
             displayError(`Network error: ${error.message}`);
         } finally {
-            resetUI();
+            resetUI(); // Reset UI elements related to image input
             setButtonsDisabled(false);
             hideSpinner();
         }
@@ -780,10 +832,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Extract text from image
     extractTextBtn.addEventListener('click', async () => {
-        if (!chatManager.getCurrentSession()) {
-            chatManager.createNewSession();
-        }
-
         setButtonsDisabled(true);
 
         const imageFile = currentSelectedImageFile;
@@ -831,39 +879,43 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error:', error);
             displayError(`Network error: ${error.message}`);
         } finally {
-            resetUI();
+            resetUI(); // Reset UI elements related to image input
             setButtonsDisabled(false);
             hideSpinner();
         }
     });
 
-    // Initialize the application
+
+    // --- Application Initialization ---
+
+    /**
+     * Initializes the application state and UI on page load.
+     */
     function initializeApp(): void {
-        // Start with a new session if none exists
+        // Load an existing session or create a new one
         if (!chatManager.getCurrentSession()) {
-            chatManager.createNewSession();
+            chatManager.createNewSession(); // This will set currentSessionId
         }
 
-        // Load current session
-        loadCurrentSession();
+        // Load messages for the current session (newly created or existing)
+        loadCurrentSession(); 
         updateChatHistory();
         updateChatTitle();
-
-        // Show welcome message if no messages
-        const session = chatManager.getCurrentSession();
-        if (!session || session.messages.length === 0) {
-            showWelcomeMessage();
-        }
 
         console.log('Application initialized successfully.');
     }
 
-    // Auto-save functionality
+    // Auto-save functionality (outside DOMContentLoaded, but uses chatManager)
+    // This interval will run continuously after the app initializes
     setInterval(() => {
         if (chatManager.getSettings().autoSaveChats) {
             const session = chatManager.getCurrentSession();
             if (session) {
                 session.updatedAt = Date.now();
+                // We don't need to call saveSessions() here, as addMessage already does it.
+                // If there's no message activity, the timestamp will just update, not forcing a save
+                // unless you explicitly want to save every 30 seconds regardless of changes.
+                // For now, I'll remove direct saveSessions here to avoid excessive writes.
             }
         }
     }, 30000);
@@ -875,6 +927,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Initialize the application
+    // Call initializeApp after all functions and variables are defined
     initializeApp();
 });
