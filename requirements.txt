@@ -1,0 +1,5 @@
+# Python dependencies for Manimatic project
+# Add your required packages here, for example:
+# manim>=0.18.0
+# numpy>=1.21.0
+# matplotlib>=3.5.0 
