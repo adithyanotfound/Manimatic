@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsc -b && node dist/src/server-v3.js",
-    "start": "tsc -b && node dist/src/server-v4.js"
+    "start": "tsc -b && node dist/src/server-v4.js",
+    "build": "tsc -b",
+    "docker:build": "docker build -t manimatic .",
+    "docker:run": "docker run -p 3000:3000 manimatic"
   },
   "keywords": [],
   "author": "",

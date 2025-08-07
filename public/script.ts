@@ -248,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Variables ---
     let currentSelectedImageFile: File | null = null;
-    const API_BASE_URL = 'http://localhost:3000';
+    const API_BASE_URL = 'https://manimatic-latest.onrender.com';
 
     // --- UI Update Functions ---
 
