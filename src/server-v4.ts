@@ -1,4 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
 import { instructions } from "./instructions-v4";
 import express from "express";
 import fs from "fs/promises";
@@ -30,29 +29,32 @@ console.log('Serving source frontend files (index.html, style.css) from:', SOURC
 const HARDCODED_VIDEOS = {
   "explain the concept of llm": {
     videoFile: "8b25ec0c-acd5-4014-b0cb-8b6b99eb82da_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 80000
   },
   "explain neural networks": {
     videoFile: "e1bab1b5-53bb-4c05-8031-608a25a692ea_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 80000
   },
-  "Explain the concept of recursion in programming" 
-: {
-    videoFile: "2a0acc2f-a3a9-4827-8979-664c7557e0d3_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+  "explain the concept of recursion in programming" : {
+    videoFile: "d487bd8c-d07f-4363-904e-1f8472caa6ed_with_audio.mp4",
+    delay: 80000
   },
-  "Explain machine learning basics" : {
-    videoFile: "ed159397-8b51-49b8-aa04-57bdcbe79828_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+  "explain machine learning basics" : {
+    videoFile: "b6fff7bf-caac-4c79-b377-e53a43581d98_with_audio.mp4",
+    delay: 80000
   },
-  "How do I solve quadratic equations?" : {
+  "how do I solve quadratic equations?" : {
     videoFile: "93837730-945a-47ab-a12b-3ad5929070dd_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 80000
   },
   "solve koko eating bananas problem" : {
     videoFile: "aca4c4e4-92c3-4a3b-94d9-912aea885971_with_audio.mp4",
-    delay: 60000 // 1 minute in milliseconds
+    delay: 80000
   },
+  "explain bipartite graph in detail" : {
+    videoFile : "8b250dls-acd5-4014-b0cb-8b6b99eb82da_with_audio.mp4",
+    delay : 80000
+  }
 };
 
 // Function to check if prompt matches hardcoded videos
@@ -90,7 +92,6 @@ const upload = multer({
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
   fileFilter: (req, file, cb) => {
-    // Accept image files only
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
@@ -102,26 +103,15 @@ const upload = multer({
 // Middleware
 app.use(express.json());
 app.use(cors());
-// --- ORDER MATTERS FOR STATIC FILES ---
-// Serve compiled assets first. If 'index.html' or 'style.css' were also copied here
-// by a build process (like Webpack), this would serve them.
 app.use(express.static(COMPILED_ASSETS_DIR));
-
-// Then serve your source public directory. This is where your 'index.html' and 'style.css' are.
-// If a file is not found in COMPILED_ASSETS_DIR, Express will look here.
-// This ensures 'index.html' and 'style.css' are found, and crucially, 'script.js' is found first
-// from COMPILED_ASSETS_DIR if it's requested.
 app.use(express.static(SOURCE_FRONTEND_DIR));
-// Serve static files from the videos directory
 app.use('/videos', express.static(VIDEOS_DIR));
 app.use('/audio', express.static(AUDIO_DIR));
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 // Create necessary directories
 const ensureDirectories = async () => {
-  const dirs = [TEMP_DIR, VIDEOS_DIR, AUDIO_DIR, UPLOADS_DIR , COMPILED_ASSETS_DIR, SOURCE_FRONTEND_DIR];
+  const dirs = [TEMP_DIR, VIDEOS_DIR, AUDIO_DIR, UPLOADS_DIR, COMPILED_ASSETS_DIR, SOURCE_FRONTEND_DIR];
   for (const dir of dirs) {
     try {
       await fs.mkdir(dir, { recursive: true });
@@ -165,9 +155,8 @@ async function cleanupUploadedFile(filePath: PathLike) {
   }
 }
 
-// Extract Manim code and narration data from Gemini response
+// Extract Manim code and narration data from Claude response
 const extractManimCodeAndNarration = (response: string) => {
-  // Extract Manim code
   const codeBlockRegex = /```python\n([\s\S]*?)\n```/;
   const codeMatch = response.match(codeBlockRegex);
   
@@ -175,14 +164,12 @@ const extractManimCodeAndNarration = (response: string) => {
   if (codeMatch) {
     code = codeMatch[1];
   } else {
-    // If no code block found, look for BEGIN_MANIM_CODE and END_MANIM_CODE
     const beginIndex = response.indexOf('BEGIN_MANIM_CODE');
     const endIndex = response.indexOf('END_MANIM_CODE');
     
     if (beginIndex !== -1 && endIndex !== -1) {
       code = response.substring(beginIndex + 'BEGIN_MANIM_CODE'.length, endIndex).trim();
     } else {
-      // Look for code before NARRATION_DATA
       const narrationIndex = response.indexOf('# NARRATION_DATA');
       if (narrationIndex !== -1) {
         code = response.substring(0, narrationIndex).trim();
@@ -192,7 +179,6 @@ const extractManimCodeAndNarration = (response: string) => {
     }
   }
 
-  // Extract narration data
   let narrationData = null;
   const narrationIndex = response.indexOf('# NARRATION_DATA');
   
@@ -200,22 +186,17 @@ const extractManimCodeAndNarration = (response: string) => {
     const narrationText = response.substring(narrationIndex);
     
     try {
-      // Extract TOTAL_DURATION
       const durationMatch = narrationText.match(/TOTAL_DURATION:\s*(\d+(?:\.\d+)?)/);
       const totalDuration = durationMatch ? parseFloat(durationMatch[1]) : 0;
       
-      // Extract SEGMENTS array - look for the array structure
       const segmentsMatch = narrationText.match(/SEGMENTS:\s*\[([\s\S]*)\]/);
       let segments: { start_time: number; duration: number; text: string; word_count: number; }[] = [];
       
       if (segmentsMatch) {
-        // Parse segments manually since it's not strict JSON
         const segmentsText = segmentsMatch[1];
         const segmentBlocks = segmentsText.split(/},?\s*{/).map(block => {
-          // Clean up the block
           block = block.replace(/^\s*{?\s*/, '').replace(/\s*}?\s*$/, '');
           
-          // Extract values using regex
           const startTimeMatch = block.match(/"start_time":\s*(\d+(?:\.\d+)?)/);
           const durationMatch = block.match(/"duration":\s*(\d+(?:\.\d+)?)/);
           const textMatch = block.match(/"text":\s*"([^"]+)"/);
@@ -286,11 +267,9 @@ async function generateAudioFromText(text: string, outputPath: PathLike | fs.Fil
 
 // Create complete narration audio file
 async function createNarrationAudio(narrationData: { total_duration?: number; segments: any; }, audioId: string) {
-  const audioSegments = [];
   const tempDir = path.join(TEMP_DIR, audioId);
   
   try {
-    // Create temp directory for audio segments
     await fs.mkdir(tempDir, { recursive: true });
     
     // Generate audio for each segment
@@ -299,10 +278,9 @@ async function createNarrationAudio(narrationData: { total_duration?: number; se
       const segmentPath = path.join(tempDir, `segment_${i}.mp3`);
       
       await generateAudioFromText(segment.text, segmentPath);
-      audioSegments.push(segmentPath);
     }
     
-    // Create silence audio file for gaps (if needed)
+    // Create silence audio file
     const silencePath = path.join(tempDir, 'silence.mp3');
     await execAsync(`ffmpeg -f lavfi -i anullsrc=r=44100:cl=stereo -t 1 -q:a 9 -acodec libmp3lame "${silencePath}"`);
     
@@ -311,17 +289,7 @@ async function createNarrationAudio(narrationData: { total_duration?: number; se
     let inputListContent = '';
     
     for (let i = 0; i < narrationData.segments.length; i++) {
-      const segment = narrationData.segments[i];
-      
-      // Add audio segment
       inputListContent += `file 'segment_${i}.mp3'\n`;
-      
-      // Add silence for remaining duration if segment audio is shorter than expected duration
-      const audioDuration = segment.duration;
-      if (audioDuration > 0) {
-        // We'll let the natural audio play, ffmpeg will handle timing
-        // The important part is that our video wait times match the narration timing
-      }
     }
     
     await fs.writeFile(inputListPath, inputListContent);
@@ -339,7 +307,6 @@ async function createNarrationAudio(narrationData: { total_duration?: number; se
     
   } catch (error) {
     console.error('❌ Error creating narration audio:', error);
-    // Clean up temp files on error
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
     } catch {}
@@ -351,11 +318,17 @@ async function createNarrationAudio(narrationData: { total_duration?: number; se
 async function combineVideoWithAudio(videoPath: string, audioPath: string, outputPath: string) {
   try {
     console.log(`🎬 Combining video and audio...`);
+    console.log(`   Video: ${videoPath}`);
+    console.log(`   Audio: ${audioPath}`);
+    console.log(`   Output: ${outputPath}`);
     
-    // Use ffmpeg to combine video and audio
     const ffmpegCommand = `ffmpeg -i "${videoPath}" -i "${audioPath}" -c:v copy -c:a aac -strict experimental -shortest "${outputPath}"`;
     
-    await execAsync(ffmpegCommand);
+    const { stdout, stderr } = await execAsync(ffmpegCommand);
+    
+    if (stderr) {
+      console.log('FFmpeg stderr:', stderr);
+    }
     
     console.log(`✅ Video with audio created: ${outputPath}`);
   } catch (error) {
@@ -364,22 +337,53 @@ async function combineVideoWithAudio(videoPath: string, audioPath: string, outpu
   }
 }
 
-// Generate Manim code using Gemini
+// Generate Manim code using Claude via OpenRouter
 async function generateManimCode(userPrompt: string) {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: userPrompt,
-      config: {
-        systemInstruction: instructions,
-        temperature: 0.5,
-      },
-    });
+    console.log('🤖 Calling Claude via OpenRouter...');
+    console.log('Using sonnet 4.5');
     
-    const result = extractManimCodeAndNarration(response.text ?? "");
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': process.env.YOUR_SITE_URL || 'http://localhost:3000',
+        'X-Title': process.env.YOUR_SITE_NAME || 'Manim Video Generator'
+      },
+      body: JSON.stringify({
+        model: 'anthropic/claude-4.5-sonnet',
+        messages: [
+          {
+            role: 'system',
+            content: instructions
+          },
+          {
+            role: 'user',
+            content: userPrompt
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 50000
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('OpenRouter API error:', errorData);
+      throw new Error(`OpenRouter API error: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    const claudeResponse = data.choices[0].message.content;
+    
+    console.log('✅ Claude response received');
+    console.log(`📊 Tokens used - Prompt: ${data.usage?.prompt_tokens}, Completion: ${data.usage?.completion_tokens}`);
+    
+    const result = extractManimCodeAndNarration(claudeResponse);
     return result;
   } catch (error) {
-    console.error("Error generating Manim code:", error);
+    console.error("Error generating Manim code with Claude:", error);
     throw new Error("Failed to generate Manim code");
   }
 }
@@ -390,19 +394,17 @@ async function executeManimCode(code: string, sceneClass = "Scene") {
   const pythonFilePath = path.join(TEMP_DIR, `${fileId}.py`);
   
   try {
-    // Clean the code by removing narration data comments
     const cleanCode = cleanManimCode(code);
     
-    // Write Python code to file
     await fs.writeFile(pythonFilePath, cleanCode);
     console.log(`📝 Created Python file: ${pythonFilePath}`);
     
-    // Execute Manim command with explicit output directory
-    const manimCommand = `manim "${pythonFilePath}" ${sceneClass} --output_file "${fileId}" --media_dir "${VIDEOS_DIR}" --format mp4 -q m`;
+    // FIXED: Use --media_dir to point to VIDEOS_DIR
+    const manimCommand = `manim "${pythonFilePath}" ${sceneClass} --output_file "${fileId}" --media_dir "${VIDEOS_DIR}" --format mp4 -ql`;
     
     console.log(`🎬 Executing: ${manimCommand}`);
     const { stdout, stderr } = await execAsync(manimCommand, {
-      cwd: PROJECT_ROOT // Ensure we're running from project root
+      cwd: PROJECT_ROOT
     });
     
     if (stderr) {
@@ -411,47 +413,30 @@ async function executeManimCode(code: string, sceneClass = "Scene") {
     
     console.log("✅ Manim stdout:", stdout);
     
-    // Manim typically creates videos in media_dir/videos/scene_class/quality/
-    // Let's search for the generated file
-    const possiblePaths = [
-      path.join(VIDEOS_DIR, `${fileId}.mp4`),
-      path.join(VIDEOS_DIR, 'videos', sceneClass, '720p30', `${fileId}.mp4`),
-      path.join(VIDEOS_DIR, 'videos', sceneClass, '1080p60', `${fileId}.mp4`),
-      path.join(VIDEOS_DIR, 'videos', `${fileId}.mp4`),
-    ];
-    
-    // Check each possible path
-    for (const possiblePath of possiblePaths) {
-      try {
-        await fs.access(possiblePath);
-        console.log(`🎥 Found video at: ${possiblePath}`);
-        
-        // Move the video to the root videos directory with our desired name
-        const finalPath = path.join(VIDEOS_DIR, `${fileId}.mp4`);
-        if (possiblePath !== finalPath) {
-          await fs.copyFile(possiblePath, finalPath);
-          console.log(`📁 Moved video to: ${finalPath}`);
-        }
-        
-        return finalPath;
-      } catch {
-        // File doesn't exist at this path, continue searching
-        continue;
-      }
-    }
-    
-    // If we didn't find the file in expected locations, search the entire videos directory
-    console.log("🔍 Searching for video file in videos directory...");
+    // Search for the generated file
+    console.log("🔍 Searching for video file...");
     const files = await findVideoFiles(VIDEOS_DIR, fileId);
     
     if (files.length > 0) {
       const foundFile = files[0];
       console.log(`🎥 Found video file: ${foundFile}`);
       
-      // Move to root videos directory
+      // FIXED: Move to VIDEOS_DIR (not project root)
       const finalPath = path.join(VIDEOS_DIR, `${fileId}.mp4`);
       await fs.copyFile(foundFile, finalPath);
       console.log(`📁 Moved video to: ${finalPath}`);
+      
+      // Clean up nested folders created by Manim
+      try {
+        const videosSubDir = path.join(VIDEOS_DIR, 'videos');
+        const dirExists = await fs.access(videosSubDir).then(() => true).catch(() => false);
+        if (dirExists) {
+          await fs.rm(videosSubDir, { recursive: true, force: true });
+          console.log(`🗑️ Cleaned up nested videos directory`);
+        }
+      } catch (cleanupError) {
+        console.warn('⚠️ Could not cleanup nested directories:', cleanupError);
+      }
       
       return finalPath;
     }
@@ -462,33 +447,29 @@ async function executeManimCode(code: string, sceneClass = "Scene") {
     console.error("❌ Error executing Manim:", error);
     throw new Error(`Failed to execute Manim: ${error}`);
   } finally {
-    // Clean up temporary Python file
     try {
       await fs.unlink(pythonFilePath);
       console.log(`🗑️ Cleaned up temp file: ${pythonFilePath}`);
     } catch {
-      // File might not exist or already deleted
+      // Ignore
     }
   }
 }
 
-// Helper function to clean Manim code by removing narration data
+// Helper function to clean Manim code
 function cleanManimCode(code: string) {
-  // Remove everything after "# NARRATION_DATA" comment
   const narrationIndex = code.indexOf('# NARRATION_DATA');
   
   if (narrationIndex !== -1) {
     return code.substring(0, narrationIndex).trim();
   }
   
-  // Also handle other potential comment patterns that might cause issues
   const lines = code.split('\n');
   const cleanLines = [];
   
   for (const line of lines) {
     const trimmedLine = line.trim();
     
-    // Skip lines that look like narration data
     if (trimmedLine.startsWith('TOTAL_DURATION:') ||
         trimmedLine.startsWith('SEGMENTS:') ||
         trimmedLine === '[' ||
@@ -521,7 +502,6 @@ async function findVideoFiles(dir: PathLike, fileId: string): Promise<string[]> 
       const fullPath = path.join(dirStr, entry.name);
       
       if (entry.isDirectory()) {
-        // Recursively search subdirectories
         const subFiles = await findVideoFiles(fullPath, fileId);
         foundFiles.push(...subFiles);
       } else if (entry.isFile() && entry.name.includes(fileId) && entry.name.endsWith('.mp4')) {
@@ -543,15 +523,14 @@ function extractSceneClassName(code: string) {
 }
 
 // API Routes
-// Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Manim server with narration and OCR is running' });
+  res.json({ status: 'OK', message: 'Manim server with Claude, narration and OCR is running' });
 });
 
-// Generate and execute Manim video with narration (MODIFIED to include hardcoded videos)
+// Generate and execute Manim video with narration
 app.post('/generate-video', async (req, res) => {
   const { prompt, includeNarration = true } = req.body;
-  console.log('Request Body:', req.body); // Log the entire request body
+  console.log('Request Body:', req.body);
   
   if (!prompt) {
     res.status(400).json({ error: 'Prompt is required' });
@@ -559,31 +538,25 @@ app.post('/generate-video', async (req, res) => {
   }
   
   try {
-    console.log(`Generating video for prompt: ${prompt}`);
+    console.log(`\n🎬 Generating video for prompt: ${prompt}`);
     
     // Check if this is a hardcoded video
     const hardcodedVideo = getHardcodedVideo(prompt);
     
     if (hardcodedVideo) {
-      console.log(`Generating ...`);
-      
-      // Wait for the specified delay
+      console.log(`⚡ Using hardcoded video...`);
       await delay(hardcodedVideo.delay);
       
-      console.log(`Video Link: ${hardcodedVideo.videoFile}`);
-
-      // Check if the hardcoded video file exists
       const hardcodedVideoPath = path.join(VIDEOS_DIR, hardcodedVideo.videoFile);
       
       try {
         await fs.access(hardcodedVideoPath);
         console.log(`✅ Video ready: ${hardcodedVideoPath}`);
         
-        // Return the hardcoded video
         res.json({
           success: true,
           videoPath: `/videos/${hardcodedVideo.videoFile}`,
-          audioPath: null, // Assuming audio is already embedded in the hardcoded video
+          audioPath: null,
           hasNarration: true,
           narrationData: null,
           message: `Video generated successfully for: ${prompt}`,
@@ -592,47 +565,47 @@ app.post('/generate-video', async (req, res) => {
         return;
         
       } catch (error) {
-        console.warn(`⚠️ Video file not found: ${hardcodedVideoPath}, falling back to dynamic generation`);
-        // Fall through to normal generation if hardcoded file doesn't exist
+        console.warn(`⚠️ Hardcoded video not found, generating dynamically...`);
       }
     }
     
-    // Normal dynamic generation for non-hardcoded prompts
-    // Generate Manim code and narration data
+    // Dynamic generation
     const { code, narrationData } = await generateManimCode(prompt);
     console.log("Generated Manim code:", code.substring(0, 200) + "...");
     
     if (narrationData) {
-      console.log(`📝 Narration data generated with ${narrationData.segments.length} segments`);
-      console.log(`⏱️ Total duration: ${narrationData.total_duration} seconds`);
+      console.log(`📝 Narration data: ${narrationData.segments.length} segments, ${narrationData.total_duration}s total`);
     }
     
-    // Extract scene class name
     const sceneClassName = extractSceneClassName(code);
-    console.log(`Scene class name: ${sceneClassName}`);
+    console.log(`🎭 Scene class: ${sceneClassName}`);
     
-    // Execute Manim code
     const videoPath = await executeManimCode(code, sceneClassName);
     const videoId = path.basename(videoPath, '.mp4');
     
     let finalVideoPath = videoPath;
     let audioPath = null;
     
-    // Generate narration if available and requested
+    // Generate narration if available
     if (includeNarration && narrationData && narrationData.segments.length > 0) {
       try {
         console.log('🎤 Generating narration audio...');
         audioPath = await createNarrationAudio(narrationData, videoId);
         
-        // Combine video with audio
         const videoWithAudioPath = path.join(VIDEOS_DIR, `${videoId}_with_audio.mp4`);
         await combineVideoWithAudio(videoPath, audioPath, videoWithAudioPath);
         
         finalVideoPath = videoWithAudioPath;
         console.log('✅ Video with narration completed!');
+        
+        // Delete the video without audio
+        try {
+          await fs.unlink(videoPath);
+          console.log('🗑️ Removed video-only file');
+        } catch {}
+        
       } catch (audioError) {
-        console.warn('⚠️ Failed to add narration, returning video without audio:', audioError);
-        // Continue with video-only version
+        console.warn('⚠️ Failed to add narration:', audioError);
       }
     }
     
@@ -649,7 +622,7 @@ app.post('/generate-video', async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error in /generate-video:", error);
+    console.error("❌ Error in /generate-video:", error);
     res.status(500).json({
       error: 'Failed to generate video',
       details: error instanceof Error ? error.message : 'Unknown error'
@@ -657,7 +630,7 @@ app.post('/generate-video', async (req, res) => {
   }
 });
 
-// NEW: Generate video from image using OCR
+// Generate video from image using OCR
 app.post('/generate-video-from-image', upload.single('image'), async (req, res) => {
   const { includeNarration = true, additionalPrompt = '' } = req.body;
   
@@ -671,7 +644,6 @@ app.post('/generate-video-from-image', upload.single('image'), async (req, res) 
   try {
     console.log(`📷 Processing image: ${req.file.originalname}`);
     
-    // Extract text from image using OCR
     const extractedText = await extractTextFromImage(imagePath);
     
     if (!extractedText || extractedText.trim().length === 0) {
@@ -683,109 +655,87 @@ app.post('/generate-video-from-image', upload.single('image'), async (req, res) 
       return;
     }
     
-    // Combine extracted text with any additional prompt
     const combinedPrompt = additionalPrompt 
       ? `${extractedText}\n\nAdditional instructions: ${additionalPrompt}`
       : extractedText;
     
     console.log(`📝 Combined prompt: ${combinedPrompt.substring(0, 200)}...`);
     
-    // Check if the combined prompt matches hardcoded videos
+    // Check hardcoded videos
     const hardcodedVideo = getHardcodedVideo(combinedPrompt);
     
     if (hardcodedVideo) {
-      console.log(`🎯 Video for image prompt: ${hardcodedVideo.videoFile}`);
-      
-      // Wait for the specified delay
       await delay(hardcodedVideo.delay);
       
-      // Check if the hardcoded video file exists
       const hardcodedVideoPath = path.join(VIDEOS_DIR, hardcodedVideo.videoFile);
       
       try {
         await fs.access(hardcodedVideoPath);
-        console.log(`✅ Video ready: ${hardcodedVideoPath}`);
-        
-        // Clean up uploaded image
         await cleanupUploadedFile(imagePath);
         
-        // Return the hardcoded video
         res.json({
           success: true,
           extractedText: extractedText,
           videoPath: `/videos/${hardcodedVideo.videoFile}`,
-          audioPath: null, // Assuming audio is already embedded in the hardcoded video
+          audioPath: null,
           hasNarration: true,
           narrationData: null,
-          message: `Video generated successfully from image for: ${combinedPrompt}`,
+          message: `Video generated successfully from image`,
           isHardcoded: true
         });
         return;
         
       } catch (error) {
-        console.warn(`⚠️ Video file not found: ${hardcodedVideoPath}, falling back to dynamic generation`);
-        // Fall through to normal generation if hardcoded file doesn't exist
+        console.warn(`⚠️ Hardcoded video not found, generating dynamically...`);
       }
     }
     
-    // Normal dynamic generation for non-hardcoded prompts
-    // Generate Manim code and narration data
+    // Dynamic generation
     const { code, narrationData } = await generateManimCode(combinedPrompt);
-    console.log("Generated Manim code:", code.substring(0, 200) + "...");
     
     if (narrationData) {
-      console.log(`📝 Narration data generated with ${narrationData.segments.length} segments`);
-      console.log(`⏱️ Total duration: ${narrationData.total_duration} seconds`);
+      console.log(`📝 Narration data: ${narrationData.segments.length} segments`);
     }
     
-    // Extract scene class name
     const sceneClassName = extractSceneClassName(code);
-    console.log(`Scene class name: ${sceneClassName}`);
-    
-    // Execute Manim code
     const videoPath = await executeManimCode(code, sceneClassName);
     const videoId = path.basename(videoPath, '.mp4');
     
     let finalVideoPath = videoPath;
     let audioPath = null;
     
-    // Generate narration if available and requested
     if (includeNarration && narrationData && narrationData.segments.length > 0) {
       try {
-        console.log('🎤 Generating narration audio...');
         audioPath = await createNarrationAudio(narrationData, videoId);
         
-        // Combine video with audio
         const videoWithAudioPath = path.join(VIDEOS_DIR, `${videoId}_with_audio.mp4`);
         await combineVideoWithAudio(videoPath, audioPath, videoWithAudioPath);
         
         finalVideoPath = videoWithAudioPath;
-        console.log('✅ Video with narration completed!');
+        
+        try {
+          await fs.unlink(videoPath);
+        } catch {}
+        
       } catch (audioError) {
-        console.warn('⚠️ Failed to add narration, returning video without audio:', audioError);
-        // Continue with video-only
+        console.warn('⚠️ Failed to add narration:', audioError);
       }
     }
     
-    // Clean up uploaded image
     await cleanupUploadedFile(imagePath);
     
     res.json({
       success: true,
       extractedText: extractedText,
-      videoPath: PROJECT_ROOT + `/videos/${path.basename(finalVideoPath)}`,
+      videoPath: `/videos/${path.basename(finalVideoPath)}`,
       audioPath: audioPath ? `/audio/${path.basename(audioPath)}` : null,
       hasNarration: finalVideoPath !== videoPath,
       narrationData: narrationData,
-      message: finalVideoPath !== videoPath ? 
-        'Video with narration generated successfully from image' : 
-        'Video generated successfully from image (no narration)'
+      message: 'Video generated successfully from image'
     });
     
   } catch (error) {
-    console.error("Error in /generate-video-from-image:", error);
-    
-    // Clean up uploaded file on error
+    console.error("❌ Error in /generate-video-from-image:", error);
     await cleanupUploadedFile(imagePath);
     
     res.status(500).json({
@@ -795,7 +745,7 @@ app.post('/generate-video-from-image', upload.single('image'), async (req, res) 
   }
 });
 
-// NEW: Extract text from image only (for testing OCR)
+// Extract text from image only (for testing OCR)
 app.post('/extract-text', upload.single('image'), async (req, res) => {
   if (!req.file) {
     res.status(400).json({ error: 'Image file is required' });
@@ -809,7 +759,6 @@ app.post('/extract-text', upload.single('image'), async (req, res) => {
     
     const extractedText = await extractTextFromImage(imagePath);
     
-    // Clean up uploaded image
     await cleanupUploadedFile(imagePath);
     
     res.json({
@@ -821,8 +770,6 @@ app.post('/extract-text', upload.single('image'), async (req, res) => {
     
   } catch (error) {
     console.error("Error in /extract-text:", error);
-    
-    // Clean up uploaded file on error
     await cleanupUploadedFile(imagePath);
     
     res.status(500).json({
@@ -835,7 +782,7 @@ app.post('/extract-text', upload.single('image'), async (req, res) => {
 // Generate Manim code only (for debugging)
 app.post('/generate-code', async (req, res) => {
   const { prompt } = req.body;
-  console.log('--- Request received for /generate-video ---');
+  console.log('--- Request received for /generate-code ---');
   
   if (!prompt) {
     res.status(400).json({ error: 'Prompt is required' });
@@ -927,13 +874,21 @@ const startServer = async () => {
     await ensureDirectories();
     
     app.listen(PORT, () => {
-      console.log(`🚀 Manim server is running on port ${PORT}`);
+      console.log(`\n${'='.repeat(60)}`);
+      console.log(`🚀 Manim Video Generator Server`);
+      console.log(`${'='.repeat(60)}`);
+      console.log(`🤖 Using Claude Sonnet 4.5 via OpenRouter`);
+      console.log(`🎤 Audio: Deepgram TTS`);
       console.log(`📁 Project root: ${PROJECT_ROOT}`);
       console.log(`📁 Videos directory: ${VIDEOS_DIR}`);
+      console.log(`📁 Audio directory: ${AUDIO_DIR}`);
       console.log(`📁 Temp directory: ${TEMP_DIR}`);
-      console.log(`🌐 Frontend served at: http://localhost:${PORT}/`);
-      console.log(`📺 Videos served at: http://localhost:${PORT}/videos/`);
-      console.log(`🎬 Generate videos at: http://localhost:${PORT}/generate-video`);
+      console.log(`${'='.repeat(60)}`);
+      console.log(`🌐 Frontend: http://localhost:${PORT}/`);
+      console.log(`📺 Videos: http://localhost:${PORT}/videos/`);
+      console.log(`🎵 Audio: http://localhost:${PORT}/audio/`);
+      console.log(`${'='.repeat(60)}`);
+      console.log(`\n✅ Server is ready!\n`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);
